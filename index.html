@@ -15,6 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- 自動伴奏系統模組 -->
+    <script src="js/AccompanimentSystem.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
@@ -635,107 +638,59 @@
             durValDisplay.innerText = `${e.target.value}s`;
         });
 
-        // --- Auto Chords Logic ---
-        let isChordPlaying = false;
-        let chordIntervalId = null;
-        let currentBarIndex = 0;
-        let loopStart = 0;
-        let loopEnd = 0;
-        let bpm = 100;
-        let chordVolume = 0.3;
-        let chordInstrument = 'soft_pad';
+        // --- Auto Chords Logic (使用模組化的 AccompanimentSystem) ---
+        const accompaniment = new AccompanimentSystem({
+            bpm: 100,
+            volume: 0.3,
+            instrument: 'soft_pad',
+            metronomeEnabled: false,
+            isArpeggio: false,
 
-        chordInstrumentSelect.addEventListener('change', (e) => {
-            chordInstrument = e.target.value;
+            // 小節變更回調 - 更新 UI 顯示
+            onBarChange: (data) => {
+                let melodyHint = '';
+                if (data.hint) {
+                    melodyHint = `<div style="font-size: 1.8rem; color: #00ffcc; margin-top: 8px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.8); font-family: 'Share Tech Mono', monospace;">${data.hint}</div>`;
+                }
+                const displayBarNum = data.measureNumber || data.barIndex + 1;
+                chordDisplay.innerHTML = `
+                    <div style="font-size: 1rem; color: #9ca3af; text-shadow: none; margin-bottom: -5px;">第 ${displayBarNum} 小節</div>
+                    <div style="line-height: 1;">${data.chord === 'NC' ? 'Metronome' : data.chord}</div>
+                    ${melodyHint}
+                `;
+            },
+
+            // 節拍器回調 - 閃爍燈號
+            onMetronomeBeat: (data) => {
+                flashMetronomeLight(data.isAccent);
+            },
+
+            // 狀態變更回調 - 更新按鈕
+            onStateChange: (data) => {
+                if (data.state === 'playing') {
+                    chordPlayBtn.innerText = "⏹ 停止伴奏";
+                    chordPlayBtn.classList.replace("bg-green-800/60", "bg-red-800/60");
+                    chordPlayBtn.classList.replace("border-green-600", "border-red-600");
+                    chordDisplay.classList.add('active');
+                } else {
+                    chordPlayBtn.innerText = "▶ 開始伴奏";
+                    chordPlayBtn.classList.replace("bg-red-800/60", "bg-green-800/60");
+                    chordPlayBtn.classList.replace("border-red-600", "border-green-600");
+                    chordDisplay.classList.remove('active');
+                    chordDisplay.innerText = "";
+                }
+            }
         });
-        
-        // Basic Chords (Midi Numbers for Triads in C3-C4 range)
-        const CHORDS = {
-            'C':  [48, 52, 55], // C3, E3, G3
-            'C7': [48, 52, 55, 58], // C3, E3, G3, Bb3
-            'D':  [50, 54, 57], // D3, F#3, A3
-            'Dm': [50, 53, 57], // D3, F3, A3
-            'E':  [52, 56, 59], // E3, G#3, B3
-            'Em': [52, 55, 59], // E3, G3, B3
-            'F':  [53, 57, 60], // F3, A3, C4
-            'F7': [53, 57, 60, 63], // F3, A3, C4, Eb4 (New for F Major key)
-            'G':  [55, 59, 62], // G3, B3, D4
-            'G7': [55, 59, 62, 65],
-            'Am': [57, 60, 64], // A3, C4, E4
-            'Bb': [50, 53, 58],  // D3, F3, Bb3 (First inversion)
-            'NC': [] // No Chord (Silence)
-        };
 
-        // Song Sections Definition
-        const SONG_SECTIONS = {
-            'amazing_grace': [
-                { name: "全曲循環 (Full Song)", start: 0, end: 17 },
-                { name: "引子 (Intro)", start: 0, end: 0 },
-                { name: "第一句 (Phrase 1)", start: 1, end: 5 },
-                { name: "第二句 (Phrase 2)", start: 6, end: 9 },
-                { name: "第三句 (Phrase 3)", start: 10, end: 13 },
-                { name: "第四句 (Phrase 4)", start: 14, end: 17 }
-            ]
-        };
+        // UI 事件綁定
+        chordInstrumentSelect.addEventListener('change', (e) => {
+            accompaniment.setInstrument(e.target.value);
+        });
 
-        const PROGRESSIONS = {
-            'metronome_4': [
-                {c:'NC', b:4, h:'Metronome (4/4)', m:1}
-            ],
-            'metronome_3': [
-                {c:'NC', b:3, h:'Metronome (3/4)', m:1}
-            ],
-            'amazing_grace': [
-                // User's Custom Score (F Major, Do=4)
-                // Intro: | 1 - - |
-                {c:'F', b:3, h:'[1] (Intro)', m:0}, 
-
-                // Phrase 1
-                // | 4 - 64 | 6 - 5 | 4 - 2 | 1 - - | 1 - 1 |
-                {c:'F', b:3, h:'[4] ... [6][4]', m:1}, 
-                {c:'C', b:3, h:'[6] ... [5]', m:2}, 
-                {c:'Bb', b:3, h:'[4] ... [2]', m:3}, 
-                {c:'F', b:3, h:'[1]', m:4},
-                {c:'F', b:3, h:'[1] ... [1]', m:5}, // Extra bar for "the sound" pickup?
-
-                // Phrase 2
-                // | 4 - 64 | 6 - 5 | 1. - - | 6 - 1. |
-                {c:'F', b:3, h:'[4] ... [6][4]', m:6}, 
-                {c:'C', b:3, h:'[6] ... [5]', m:7}, 
-                {c:'F', b:3, h:'[9](High 1)', m:8}, 
-                {c:'Dm', b:3, h:'[6] ... [9]', m:9},
-
-                // Phrase 3
-                // | 1. - 64 | 4 - 2 | 1 - 2 | 1 - 1 |
-                {c:'F', b:3, h:'[9] ... [6][4]', m:10}, 
-                {c:'Bb', b:3, h:'[4] ... [2]', m:11}, 
-                {c:'F', b:3, h:'[1] ... [2]', m:12},
-                {c:'C', b:3, h:'[1] ... [1]', m:13},
-
-                // Phrase 4
-                // | 4 - 64 | 6 - 5 | 4 - - | - - - |
-                {c:'F', b:3, h:'[4] ... [6][4]', m:14}, 
-                {c:'C', b:3, h:'[6] ... [5]', m:15}, 
-                {c:'F', b:3, h:'[4]', m:16}, 
-                {c:'F', b:3, h:'(End)', m:17}
-            ],
-            'pop_c': [
-                {c:'C', b:4}, {c:'G', b:4}, {c:'Am', b:4}, {c:'F', b:4}
-            ],
-            'canon': [
-                {c:'C', b:4}, {c:'G', b:4}, {c:'Am', b:4}, {c:'Em', b:4},
-                {c:'F', b:4}, {c:'C', b:4}, {c:'F', b:4}, {c:'G', b:4}
-            ],
-            'basic_1451': [
-                {c:'C', b:4}, {c:'F', b:4}, {c:'G', b:4}, {c:'C', b:4}
-            ]
-        };
-
-        // Handle Genre Selection Change
         chordProgSelect.addEventListener('change', (e) => {
             const key = e.target.value;
-            const sections = SONG_SECTIONS[key];
-            
+            const sections = accompaniment.selectProgression(key);
+
             if (sections) {
                 sectionSelectContainer.classList.remove('hidden');
                 sectionSelect.innerHTML = '';
@@ -748,259 +703,69 @@
             } else {
                 sectionSelectContainer.classList.add('hidden');
             }
-            
-            if(isChordPlaying) {
-                stopAutoChords();
-                startAutoChords();
-            }
         });
 
-        // Handle Section Selection Change
-        sectionSelect.addEventListener('change', () => {
-             if(isChordPlaying) {
-                stopAutoChords();
-                startAutoChords();
-            }
+        sectionSelect.addEventListener('change', (e) => {
+            accompaniment.selectSection(parseInt(e.target.value) || 0);
         });
 
         bpmSlider.addEventListener('input', (e) => {
-            bpm = parseInt(e.target.value);
-            bpmVal.innerText = bpm;
-            if(isChordPlaying) { stopAutoChords(); startAutoChords(); }
+            const value = parseInt(e.target.value);
+            bpmVal.innerText = value;
+            accompaniment.setBpm(value);
         });
 
         chordVolSlider.addEventListener('input', (e) => {
-            chordVolume = parseInt(e.target.value) / 100;
+            const value = parseInt(e.target.value) / 100;
             chordVolVal.innerText = `${e.target.value}%`;
+            accompaniment.setVolume(value);
+        });
+
+        document.getElementById('arpeggio-check').addEventListener('change', (e) => {
+            accompaniment.setArpeggio(e.target.checked);
+        });
+
+        metronomeCheck.addEventListener('change', (e) => {
+            accompaniment.setMetronome(e.target.checked);
         });
 
         function toggleAutoChords() {
-            if(isChordPlaying) stopAutoChords();
-            else startAutoChords();
-        }
-
-        function startAutoChords() {
             const key = chordProgSelect.value;
-            if(key === 'none') {
+            if (key === 'none' && !accompaniment.isPlaying) {
                 showFeedback("⚠️ 請先選擇曲風");
                 return;
             }
-            if(!audioCtx) {
+
+            // 確保 audioCtx 已初始化並傳給模組
+            if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            accompaniment.setAudioContext(audioCtx);
 
-            const prog = PROGRESSIONS[key];
-            if(!prog) return;
-
-            // Determine Start/End based on section selection
-            const sections = SONG_SECTIONS[key];
-            if (sections && !sectionSelectContainer.classList.contains('hidden')) {
-                const secIdx = sectionSelect.value || 0;
-                const sec = sections[secIdx];
-                loopStart = sec.start;
-                loopEnd = sec.end;
-            } else {
-                loopStart = 0;
-                loopEnd = prog.length - 1;
-            }
-
-            isChordPlaying = true;
-            currentBarIndex = loopStart;
-            
-            chordPlayBtn.innerText = "⏹ 停止伴奏";
-            chordPlayBtn.classList.replace("bg-green-800/60", "bg-red-800/60");
-            chordPlayBtn.classList.replace("border-green-600", "border-red-600");
-            chordDisplay.classList.add('active'); // 顯示和弦看板
-
-            playNextBar(prog);
+            accompaniment.toggle(key);
         }
 
-        function stopAutoChords() {
-            isChordPlaying = false;
-            clearTimeout(chordIntervalId);
-            chordPlayBtn.innerText = "▶ 開始伴奏";
-            chordPlayBtn.classList.replace("bg-red-800/60", "bg-green-800/60");
-            chordPlayBtn.classList.replace("border-red-600", "border-green-600");
-            chordDisplay.classList.remove('active'); // 隱藏和弦看板
-            chordDisplay.innerText = "";
-        }
-
-        function playNextBar(prog) {
-            if(!isChordPlaying) return;
-
-            // 重要：在外部獲取精確的時間戳，讓和弦與節拍器同步
-            const startTime = audioCtx.currentTime;
-
-            const bar = prog[currentBarIndex];
-            const notes = CHORDS[bar.c];
-            const durationSec = (60 / bpm) * bar.b; 
-
-            // 建構顯示內容：小節數 + 和弦 + (如果有)旋律提示
-            let melodyHint = '';
-            if (bar.h) {
-                // 使用青色顯示旋律提示，增加方框樣式
-                melodyHint = `<div style="font-size: 1.8rem; color: #00ffcc; margin-top: 8px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.8); font-family: 'Share Tech Mono', monospace;">${bar.h}</div>`;
-            }
-
-            // 使用 bar.m 作為顯示的小節數，若無則使用索引計算
-            const displayBarNum = bar.m ? bar.m : currentBarIndex + 1;
-
-            chordDisplay.innerHTML = `
-                <div style="font-size: 1rem; color: #9ca3af; text-shadow: none; margin-bottom: -5px;">第 ${displayBarNum} 小節</div>
-                <div style="line-height: 1;">${bar.c === 'NC' ? 'Metronome' : bar.c}</div>
-                ${melodyHint}
-            `;
-
-            // 播放和弦 (傳入統一的 startTime)
-            if(notes && notes.length > 0) {
-                playChordNotes(notes, durationSec, startTime);
-            }
-
-            // 播放節拍器 (若開啟)
-            if(metronomeCheck.checked) {
-                scheduleMetronome(bar.b, startTime);
-            }
-
-            chordIntervalId = setTimeout(() => {
-                let nextIndex = currentBarIndex + 1;
-                // Loop logic
-                if (nextIndex > loopEnd) {
-                    nextIndex = loopStart;
-                }
-                currentBarIndex = nextIndex;
-                playNextBar(prog);
-            }, durationSec * 1000);
-        }
-
-        // 新增：節拍器排程功能
-        function scheduleMetronome(beats, startTime) {
-            const beatDuration = 60 / bpm;
-            
-            for(let i = 0; i < beats; i++) {
-                const time = startTime + i * beatDuration;
-                
-                // 聲音
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                // 第一拍高音，其他低音
-                osc.frequency.value = (i === 0) ? 1000 : 800;
-                osc.type = 'square';
-                
-                gain.gain.setValueAtTime(0, time);
-                gain.gain.linearRampToValueAtTime(0.3, time + 0.005);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start(time);
-                osc.stop(time + 0.05);
-
-                // 視覺燈號排程 (使用 setTimeout，因為 CSS 動畫不能用 audio time)
-                // 注意：這只是視覺參考，可能會有些微延遲
-                const delayMs = (time - audioCtx.currentTime) * 1000;
-                if(delayMs >= 0) {
-                    setTimeout(() => flashMetronomeLight(i === 0), delayMs);
-                }
-            }
-        }
-
+        // 節拍器燈號閃爍（保留原有視覺效果）
         function flashMetronomeLight(isAccent) {
             metronomeLight.classList.add('active');
-            if(isAccent) {
-                metronomeLight.style.background = '#00ffcc'; // 第一拍變青色
+            if (isAccent) {
+                metronomeLight.style.background = '#00ffcc';
                 metronomeLight.style.boxShadow = '0 0 15px #00ffcc';
             } else {
-                metronomeLight.style.background = '#ef4444'; // 其他拍紅色
+                metronomeLight.style.background = '#ef4444';
                 metronomeLight.style.boxShadow = '0 0 10px #ef4444';
             }
             setTimeout(() => {
                 metronomeLight.classList.remove('active');
-                metronomeLight.style.background = '#334155'; // 恢復暗色
+                metronomeLight.style.background = '#334155';
                 metronomeLight.style.boxShadow = 'none';
             }, 100);
         }
 
-        function playChordNotes(midiNotes, duration, startTime) {
-            // 使用傳入的 startTime 而非重新抓取 audioCtx.currentTime
-            const isArpeggio = document.getElementById('arpeggio-check').checked;
-            
-            midiNotes.forEach((midi, index) => {
-                // 計算每個音的起始時間
-                // 如果是分解和弦，將時間平均分配到 duration 內
-                let noteStart = startTime;
-                let noteDur = duration;
-                
-                if (isArpeggio) {
-                    const step = duration / midiNotes.length;
-                    noteStart = startTime + (index * step);
-                    noteDur = step * 1.2; // 稍微重疊一點讓聲音連貫
-                }
-
-                const freq = 440 * Math.pow(2, (midi - 69) / 12);
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                const filter = audioCtx.createBiquadFilter();
-
-                let attack = 0.05;
-                let release = 0.1;
-                let type = 'triangle';
-                let filterFreq = 2000;
-
-                switch (chordInstrument) {
-                    case 'piano':
-                        type = 'triangle';
-                        attack = 0.02;
-                        release = noteDur * 0.8;
-                        filterFreq = 3000;
-                        break;
-                    case 'strings':
-                        type = 'sawtooth';
-                        attack = 0.3;
-                        release = 0.3;
-                        filterFreq = 800;
-                        break;
-                    case 'pluck':
-                        type = 'square';
-                        attack = 0.01;
-                        release = 0.2; 
-                        filterFreq = 2500;
-                        break;
-                    case 'soft_pad':
-                    default:
-                        type = 'triangle';
-                        attack = 0.5;
-                        release = 0.5;
-                        filterFreq = 1000;
-                        break;
-                }
-
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, noteStart);
-                
-                filter.type = "lowpass";
-                filter.frequency.setValueAtTime(filterFreq, noteStart);
-
-                // Envelope (使用 noteStart)
-                gain.gain.setValueAtTime(0, noteStart);
-                gain.gain.linearRampToValueAtTime(chordVolume * 0.25, noteStart + attack); 
-                
-                if (chordInstrument === 'piano' || chordInstrument === 'pluck') {
-                     gain.gain.exponentialRampToValueAtTime(0.01, noteStart + noteDur);
-                } else {
-                     gain.gain.setValueAtTime(chordVolume * 0.25, noteStart + noteDur - release);
-                     gain.gain.linearRampToValueAtTime(0, noteStart + noteDur);
-                }
-
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start(noteStart);
-                osc.stop(noteStart + noteDur + 0.5); 
-            });
+        // 為了向後相容，保留這些變數的存取
+        function getAccompanimentState() {
+            return accompaniment.getState();
         }
 
         // Mouth Control Settings
