@@ -433,39 +433,121 @@ class AccompanimentSystem {
                 noteDur = step * 1.2;
             }
 
-            const freq = 440 * Math.pow(2, (midi - 69) / 12);
-            const osc = this.audioCtx.createOscillator();
-            const gain = this.audioCtx.createGain();
-            const filter = this.audioCtx.createBiquadFilter();
-
-            // 樂器參數
-            const params = this._getInstrumentParams(noteDur);
-
-            osc.type = params.type;
-            osc.frequency.setValueAtTime(freq, noteStart);
-
-            filter.type = "lowpass";
-            filter.frequency.setValueAtTime(params.filterFreq, noteStart);
-
-            // 音量包絡
-            gain.gain.setValueAtTime(0, noteStart);
-            gain.gain.linearRampToValueAtTime(this.volume * 0.25, noteStart + params.attack);
-
-            if (this.instrument === 'piano' || this.instrument === 'pluck') {
-                gain.gain.exponentialRampToValueAtTime(0.01, noteStart + noteDur);
+            // 改進的鋼琴音色（使用多振盪器）
+            if (this.instrument === 'piano') {
+                this._playPianoNote(midi, noteStart, noteDur);
             } else {
-                gain.gain.setValueAtTime(this.volume * 0.25, noteStart + noteDur - params.release);
-                gain.gain.linearRampToValueAtTime(0, noteStart + noteDur);
+                this._playSimpleNote(midi, noteStart, noteDur);
             }
-
-            // 連接音訊節點
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.audioCtx.destination);
-
-            osc.start(noteStart);
-            osc.stop(noteStart + noteDur + 0.5);
         });
+    }
+
+    // 改進的鋼琴音色（更接近真實鋼琴）
+    _playPianoNote(midi, startTime, duration) {
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const masterGain = this.audioCtx.createGain();
+        
+        // 鋼琴特性：快速起音、指數衰減、長尾音
+        const attackTime = 0.001;  // 極快起音（模擬敲擊）
+        const peakTime = startTime + attackTime;
+        const decayTime = 0.1;     // 初始衰減
+        const sustainLevel = 0.3;  // 持續音量
+        const releaseStart = startTime + duration - 0.2;
+        
+        // 音量包絡
+        masterGain.gain.setValueAtTime(0, startTime);
+        masterGain.gain.linearRampToValueAtTime(this.volume * 0.4, peakTime);
+        masterGain.gain.exponentialRampToValueAtTime(this.volume * sustainLevel, peakTime + decayTime);
+        masterGain.gain.setValueAtTime(this.volume * sustainLevel, releaseStart);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        
+        // 主振盪器（基音）
+        const osc1 = this.audioCtx.createOscillator();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(freq, startTime);
+        
+        // 第二振盪器（豐富音色，稍微 detune）
+        const osc2 = this.audioCtx.createOscillator();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(freq, startTime);
+        osc2.detune.setValueAtTime(2, startTime); // 輕微失諧模擬琴弦共鳴
+        
+        // 第三振盪器（泛音，增加明亮度）
+        const osc3 = this.audioCtx.createOscillator();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(freq * 2, startTime); // 第一泛音
+        
+        // 三個振盪器的音量比例
+        const gain1 = this.audioCtx.createGain();
+        const gain2 = this.audioCtx.createGain();
+        const gain3 = this.audioCtx.createGain();
+        
+        gain1.gain.setValueAtTime(0.5, startTime);  // 基音最響
+        gain2.gain.setValueAtTime(0.3, startTime);  // 中頻
+        gain3.gain.setValueAtTime(0.15, startTime); // 泛音（增加明亮度）
+        
+        // 低通濾波器（模擬音箱共鳴）
+        const filter = this.audioCtx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(4000, startTime);
+        filter.Q.setValueAtTime(1, startTime);
+        
+        // 連接音訊節點
+        osc1.connect(gain1);
+        osc2.connect(gain2);
+        osc3.connect(gain3);
+        
+        gain1.connect(filter);
+        gain2.connect(filter);
+        gain3.connect(filter);
+        
+        filter.connect(masterGain);
+        masterGain.connect(this.audioCtx.destination);
+        
+        // 啟動與停止
+        osc1.start(startTime);
+        osc2.start(startTime);
+        osc3.start(startTime);
+        
+        osc1.stop(startTime + duration + 0.5);
+        osc2.stop(startTime + duration + 0.5);
+        osc3.stop(startTime + duration + 0.5);
+    }
+
+    // 簡單音色（其他樂器）
+    _playSimpleNote(midi, startTime, duration) {
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        const filter = this.audioCtx.createBiquadFilter();
+
+        // 樂器參數
+        const params = this._getInstrumentParams(duration);
+
+        osc.type = params.type;
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(params.filterFreq, startTime);
+
+        // 音量包絡
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(this.volume * 0.25, startTime + params.attack);
+
+        if (this.instrument === 'pluck') {
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        } else {
+            gain.gain.setValueAtTime(this.volume * 0.25, startTime + duration - params.release);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+        }
+
+        // 連接音訊節點
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration + 0.5);
     }
 
     _getInstrumentParams(noteDur) {
@@ -478,10 +560,12 @@ class AccompanimentSystem {
 
         switch (this.instrument) {
             case 'piano':
-                params.type = 'triangle';
-                params.attack = 0.02;
-                params.release = noteDur * 0.8;
-                params.filterFreq = 3000;
+                // Piano 使用獨立的 _playPianoNote 方法
+                // 這裡的參數不會被使用，保留是為了向後兼容
+                params.type = 'sine';
+                params.attack = 0.001;
+                params.release = 0.2;
+                params.filterFreq = 4000;
                 break;
             case 'strings':
                 params.type = 'sawtooth';
