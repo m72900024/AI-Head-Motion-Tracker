@@ -187,6 +187,54 @@
                 <input type="range" id="speed-slider" min="0.02" max="0.5" step="0.01" value="0.15">
             </div>
 
+            <!-- 座標縮放系統 -->
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                <div class="section-title">📐 座標縮放模式</div>
+                
+                <div class="mb-3">
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="scaling-mode" value="auto" onchange="setScalingMode('auto')" class="w-4 h-4 accent-purple-500">
+                            <span class="text-xs text-gray-300">✨ 智能模式 (自動優化)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="scaling-mode" value="manual" checked onchange="setScalingMode('manual')" class="w-4 h-4 accent-purple-500">
+                            <span class="text-xs text-gray-300">🔧 手動模式 (自訂靈敏度)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 手動模式控制 -->
+                <div id="manual-scaling-controls" class="mb-2">
+                    <div class="mb-2">
+                        <div class="flex justify-between">
+                            <label class="text-[0.6rem] text-gray-400">🔧 左右靈敏度:</label>
+                            <span id="yaw-scale-val" class="text-[0.6rem] text-gray-300">100%</span>
+                        </div>
+                        <input type="range" id="yaw-scale-slider" min="50" max="300" step="5" value="100" 
+                               oninput="document.getElementById('yaw-scale-val').innerText = this.value + '%'; calibrationSystem.setYawScale(this.value);"
+                               class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                    </div>
+                    <div class="mb-2">
+                        <div class="flex justify-between">
+                            <label class="text-[0.6rem] text-gray-400">🔧 上下靈敏度:</label>
+                            <span id="pitch-scale-val" class="text-[0.6rem] text-gray-300">100%</span>
+                        </div>
+                        <input type="range" id="pitch-scale-slider" min="50" max="300" step="5" value="100"
+                               oninput="document.getElementById('pitch-scale-val').innerText = this.value + '%'; calibrationSystem.setPitchScale(this.value);"
+                               class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500">
+                    </div>
+                </div>
+
+                <!-- 智能模式資訊 -->
+                <div id="auto-scaling-info" class="hidden">
+                    <div id="auto-scaling-info-text" class="p-2 bg-purple-900/30 rounded border border-purple-700">
+                        <div class="text-xs text-gray-400 mb-1">✨ 自動歸一化：已啟用</div>
+                        <div class="text-xs text-gray-300">使用「圓形範圍偵測」自動計算最佳縮放</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 音效設定區塊 -->
             <div class="section-title">🎵 音效設定</div>
             
@@ -464,7 +512,8 @@
             getIsEditMode: () => uiController.getIsEditMode(),
             onPlayNote: (freq, pointId) => playNote(freq, pointId, false),
             getSoundSettings: () => calibrationSystem.getSoundSettings(),
-            getCenterOffset: () => calibrationSystem.getCenterOffset()
+            getCenterOffset: () => calibrationSystem.getCenterOffset(),
+            getScalingFactors: () => calibrationSystem.getScalingFactors()
         });
         
         // Initialize Accompaniment System
@@ -742,6 +791,10 @@
 
         function handleFileSelect(evt) {
             calibrationSystem.handleFileSelect(evt);
+        }
+
+        function setScalingMode(mode) {
+            calibrationSystem.setScalingMode(mode);
         }
 
         function toggleAutoChords() {

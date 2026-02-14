@@ -19,6 +19,13 @@ class CalibrationSystem {
         this.mouthControlEnabled = true;
         this.mouthTriggerMode = 'close';
         
+        // Scaling System (座標縮放系統)
+        this.scalingMode = 'manual';  // 'auto' or 'manual'
+        this.yawScale = 100;          // 左右靈敏度 % (50-300)
+        this.pitchScale = 100;        // 上下靈敏度 % (50-300)
+        this.autoYawScale = 1.0;      // 智能模式計算結果
+        this.autoPitchScale = 1.0;    // 智能模式計算結果
+        
         // Range Detection State
         this.isRangeDetecting = false;
         this.rangeMinYaw = Infinity;
@@ -208,6 +215,23 @@ class CalibrationSystem {
         const spanYaw = (this.rangeMaxYaw - this.rangeMinYaw) / 2;
         const spanPitch = (this.rangeMaxPitch - this.rangeMinPitch) / 2;
         
+        // 智能模式：自動計算縮放比例
+        if (this.scalingMode === 'auto') {
+            const maxSpan = Math.max(spanYaw, spanPitch);
+            this.autoYawScale = maxSpan / spanYaw;
+            this.autoPitchScale = maxSpan / spanPitch;
+            
+            // 轉換為百分比顯示
+            this.yawScale = Math.round(this.autoYawScale * 100);
+            this.pitchScale = Math.round(this.autoPitchScale * 100);
+            
+            if (this.config.showFeedback) {
+                this.config.showFeedback(
+                    `✨ 智能縮放：左右 ${this.yawScale}% / 上下 ${this.pitchScale}%`
+                );
+            }
+        }
+        
         const y_left = spanYaw;
         const y_right = -spanYaw;
         const y_mid = 0;
@@ -309,7 +333,10 @@ class CalibrationSystem {
             smoothingFactor: this.smoothingFactor,
             soundSettings: this.soundSettings,
             mouthControlEnabled: this.mouthControlEnabled,
-            mouthTriggerMode: this.mouthTriggerMode
+            mouthTriggerMode: this.mouthTriggerMode,
+            scalingMode: this.scalingMode,
+            yawScale: this.yawScale,
+            pitchScale: this.pitchScale
         };
         
         try {
@@ -372,6 +399,15 @@ class CalibrationSystem {
                     this.mouthTriggerMode = config.mouthTriggerMode;
                     document.getElementById('mouth-trigger-mode').value = this.mouthTriggerMode;
                 }
+                if (config.scalingMode !== undefined) {
+                    this.scalingMode = config.scalingMode;
+                }
+                if (config.yawScale !== undefined) {
+                    this.yawScale = config.yawScale;
+                }
+                if (config.pitchScale !== undefined) {
+                    this.pitchScale = config.pitchScale;
+                }
                 
                 // Update UI
                 document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
@@ -414,7 +450,10 @@ class CalibrationSystem {
             Sound_Duration: this.soundSettings.duration,
             Sound_ReturnToCenter: this.soundSettings.returnToCenter,
             Mouth_Control_Enabled: this.mouthControlEnabled,
-            Mouth_Trigger_Mode: this.mouthTriggerMode
+            Mouth_Trigger_Mode: this.mouthTriggerMode,
+            Scaling_Mode: this.scalingMode,
+            Yaw_Scale: this.yawScale,
+            Pitch_Scale: this.pitchScale
         };
         
         let csvContent = "\uFEFFParameter,Value\n";
@@ -488,6 +527,9 @@ class CalibrationSystem {
         let newCalibrationData = {};
         let newMouthEnabled = this.mouthControlEnabled;
         let newMouthTrigger = this.mouthTriggerMode;
+        let newScalingMode = 'manual';  // 預設手動模式（向後兼容）
+        let newYawScale = 100;          // 預設 100%（無縮放）
+        let newPitchScale = 100;        // 預設 100%（無縮放）
         
         for (let line of lines) {
             line = line.trim();
@@ -516,6 +558,9 @@ class CalibrationSystem {
                     case 'Sound_ReturnToCenter': newSoundSettings.returnToCenter = (val === 'true'); break;
                     case 'Mouth_Control_Enabled': newMouthEnabled = (val === 'true'); break;
                     case 'Mouth_Trigger_Mode': newMouthTrigger = val; break;
+                    case 'Scaling_Mode': newScalingMode = val || 'manual'; break;
+                    case 'Yaw_Scale': newYawScale = parseFloat(val) || 100; break;
+                    case 'Pitch_Scale': newPitchScale = parseFloat(val) || 100; break;
                 }
             } else {
                 const id = parseInt(parts[0]);
@@ -549,6 +594,9 @@ class CalibrationSystem {
         this.calibrationData = newCalibrationData;
         this.mouthControlEnabled = newMouthEnabled;
         this.mouthTriggerMode = newMouthTrigger;
+        this.scalingMode = newScalingMode;
+        this.yawScale = newYawScale;
+        this.pitchScale = newPitchScale;
         
         // Update UI
         document.getElementById('speed-slider').value = this.smoothingFactor;
@@ -562,6 +610,23 @@ class CalibrationSystem {
         document.getElementById('return-center-toggle').checked = this.soundSettings.returnToCenter;
         document.getElementById('mouth-enable-check').checked = this.mouthControlEnabled;
         document.getElementById('mouth-trigger-mode').value = this.mouthTriggerMode;
+        
+        // Update scaling UI
+        const scalingModeRadios = document.getElementsByName('scaling-mode');
+        scalingModeRadios.forEach(radio => {
+            radio.checked = (radio.value === this.scalingMode);
+        });
+        const yawScaleSlider = document.getElementById('yaw-scale-slider');
+        const pitchScaleSlider = document.getElementById('pitch-scale-slider');
+        if (yawScaleSlider) {
+            yawScaleSlider.value = this.yawScale;
+            document.getElementById('yaw-scale-val').innerText = `${this.yawScale}%`;
+        }
+        if (pitchScaleSlider) {
+            pitchScaleSlider.value = this.pitchScale;
+            document.getElementById('pitch-scale-val').innerText = `${this.pitchScale}%`;
+        }
+        this.updateScalingUI();
         
         this.saveConfig();
         if (this.config.updateModeDisplay) {
@@ -624,5 +689,61 @@ class CalibrationSystem {
     switchProfile(index) {
         this.currentProfileIndex = index;
         this.loadConfig();
+    }
+
+    // 設定縮放模式
+    setScalingMode(mode) {
+        this.scalingMode = mode;
+        this.updateScalingUI();
+        this.saveConfig();
+    }
+
+    // 更新縮放 UI 顯示
+    updateScalingUI() {
+        const manualControls = document.getElementById('manual-scaling-controls');
+        const autoInfo = document.getElementById('auto-scaling-info');
+        
+        if (this.scalingMode === 'manual') {
+            if (manualControls) manualControls.classList.remove('hidden');
+            if (autoInfo) autoInfo.classList.add('hidden');
+        } else {
+            if (manualControls) manualControls.classList.add('hidden');
+            if (autoInfo) autoInfo.classList.remove('hidden');
+            
+            // 更新智能模式資訊
+            const autoInfoText = document.getElementById('auto-scaling-info-text');
+            if (autoInfoText) {
+                autoInfoText.innerHTML = `
+                    <div class="text-xs text-gray-400 mb-1">✨ 自動歸一化：已啟用</div>
+                    <div class="text-xs text-gray-300">縮放比例：左右 ${this.yawScale}% / 上下 ${this.pitchScale}%</div>
+                `;
+            }
+        }
+    }
+
+    // 設定手動縮放值
+    setYawScale(value) {
+        this.yawScale = parseInt(value);
+        this.saveConfig();
+    }
+
+    setPitchScale(value) {
+        this.pitchScale = parseInt(value);
+        this.saveConfig();
+    }
+
+    // 取得當前縮放係數（供 FaceTracker 使用）
+    getScalingFactors() {
+        if (this.scalingMode === 'auto') {
+            return {
+                yaw: this.yawScale / 100,
+                pitch: this.pitchScale / 100
+            };
+        } else {
+            return {
+                yaw: this.yawScale / 100,
+                pitch: this.pitchScale / 100
+            };
+        }
     }
 }

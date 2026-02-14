@@ -136,8 +136,15 @@ class FaceTracker {
             this.smoothPitch = this.smoothPitch * (1 - smoothingFactor) + this.rawPitch * smoothingFactor;
             
             // Normalize with center offset
-            const dispYaw = this.normalizeYaw(this.smoothYaw);
-            const dispPitch = this.normalizePitch(this.smoothPitch);
+            let dispYaw = this.normalizeYaw(this.smoothYaw);
+            let dispPitch = this.normalizePitch(this.smoothPitch);
+            
+            // Apply scaling factors (靈敏度縮放)
+            if (this.config.getScalingFactors) {
+                const factors = this.config.getScalingFactors();
+                dispYaw *= factors.yaw;
+                dispPitch *= factors.pitch;
+            }
             
             this.valYaw.innerText = dispYaw.toFixed(2);
             this.valPitch.innerText = dispPitch.toFixed(2);
