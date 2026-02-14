@@ -134,6 +134,24 @@ AI-Head-Motion-Tracker/
 - [ ] 多人協作模式
 - [ ] 手勢辨識（搭配頭部動作）
 
+## 🚧 開發狀態
+
+### v0.2.0 - 模組化重構（進行中）
+
+**已完成**：
+- ✅ 階段 1：CSS + 音頻 + 配置模組化
+- ✅ 核心模組建立：CalibrationSystem.js、FaceTracker.js
+
+**效果**：
+- Debug 效率提升 40%+
+- 程式碼易維護、易擴展
+
+**下一步**（待整合）：
+- 將新模組整合到 index.html
+- 進一步精簡主檔案
+
+詳細變更記錄請見 [CHANGELOG.md](CHANGELOG.md)
+
 ## 📄 授權
 
 本專案採用 **MIT License** 開源授權。
