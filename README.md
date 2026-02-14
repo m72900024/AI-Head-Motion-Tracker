@@ -20,9 +20,11 @@
 
 ### 🎹 頭部動作樂器
 - **3×3 校準網格**：9 個頭部位置對應 9 個音高
+- **快速校準模式**：圓形範圍偵測自動生成校正點
 - **即時音頻合成**：使用 Web Audio API 產生高品質聲音
 - **自訂音階**：每個位置可獨立設定半音階
-- **多種樂器音色**：鋼琴、弦樂、撥弦、柔和墊音
+- **多種樂器音色**：鋼琴、8-Bit 電子音、長笛
+- **CSV 匯入匯出**：備份、分享、版本控制校正設定
 
 ### 🎵 自動伴奏系統
 - **內建歌曲**：Amazing Grace (3/4 拍)
@@ -65,12 +67,19 @@ npx http-server -p 8000
 ## 🎼 操作指南
 
 ### 校準步驟
-1. 進入「伴奏設定」面板
+1. 進入「校正與設定」面板
 2. 選擇一個位置（例如中央）
 3. 移動頭部到該位置
 4. 點擊「錄製」記錄位置
 5. 設定該位置的音高（Do, Re, Mi...）
 6. 重複 2-5 完成 9 個位置
+
+### 快速校準（推薦）
+使用「🌀 開始圓形範圍偵測」：
+1. 點擊「🌀 開始圓形範圍偵測」按鈕
+2. 輕鬆地用頭部畫一個圓圈（不需到極限）
+3. 點擊「完成並自動校正中心」
+4. 系統自動生成 9 個校正點 ✅
 
 ### 伴奏設定
 - **選擇曲目**：純節拍器 / Amazing Grace / 卡農...
@@ -78,6 +87,50 @@ npx http-server -p 8000
 - **分解和弦**：勾選「琶音」
 - **節拍器**：勾選「開啟節拍器」
 - **速度調整**：拖曳 BPM 滑桿
+
+### 📥 CSV 匯入匯出（備份與分享）
+
+#### 匯出校正設定
+1. 完成校正後，點擊「📤 匯出 CSV」
+2. 下載檔案：`head_tracker_profile_1_2026-02-14.csv`
+3. 保存備份或分享給其他使用者
+
+#### 匯入校正設定
+1. 點擊「📥 匯入 CSV」
+2. 選擇之前匯出的 CSV 檔案
+3. 系統自動套用所有設定（校正點、音效、靈敏度）
+4. 顯示「✅ CSV 匯入成功！」
+
+#### CSV 內容說明
+匯出的 CSV 檔案包含：
+- **全域參數**：中心點座標、平滑係數、觸發半徑
+- **音效設定**：樂器、音量、音符長度、回中重置
+- **嘴部控制**：八度切換開關、觸發模式
+- **9 個校正點**：座標、半徑、半音偏移、MIDI 音高、名稱
+
+#### 使用場景
+- ✅ **備份設定**：防止誤操作遺失校正
+- ✅ **分享設定**：給不同使用者（不同頭型）
+- ✅ **快速切換**：不同情境（音樂課/復健課）
+- ✅ **版本控制**：保存不同時期的校正版本
+
+#### 範例 CSV 格式
+```csv
+Parameter,Value
+Profile,1
+Center_Yaw,0.0000
+Center_Pitch,0.4500
+Smoothing,0.15
+Trigger_Radius_Global,40
+Sound_Instrument,piano
+Sound_Volume,0.5
+Sound_Duration,1.5
+
+ID,Yaw,Pitch,Radius,SemitoneShift,BaseMidi,Name
+1,0.1234,0.5678,40,0,60,Do (1)
+2,0.0000,0.5678,40,0,62,Re (2)
+...
+```
 
 ## 🛠️ 技術架構
 
@@ -115,7 +168,7 @@ index.html (781 行)              整合層
 
 | 模組 | 職責 | 行數 |
 |------|------|------|
-| **CalibrationSystem.js** | 校正點錄製、範圍偵測、CSV 匯入匯出 | 628 |
+| **CalibrationSystem.js** | 校正點錄製、範圍偵測、CSV 匯入匯出、設定持久化 | 628 |
 | **FaceTracker.js** | MediaPipe 整合、座標追蹤、觸發偵測 | 372 |
 | **UIController.js** | 面板切換、拖拽、滾輪控制、回饋顯示 | 423 |
 | **AccompanimentSystem.js** | 和弦進行、節拍器、琶音、段落循環 | 563 |
@@ -147,7 +200,8 @@ AI-Head-Motion-Tracker/
 ✅ **跨平台**：支援桌機、筆電、平板  
 ✅ **免安裝**：純網頁應用，開瀏覽器即用  
 ✅ **開源**：完整程式碼公開  
-✅ **模組化架構**：易於維護與擴展
+✅ **模組化架構**：易於維護與擴展  
+✅ **設定可攜**：CSV 格式備份與分享校正設定
 
 ## 👨‍💻 開發者指南
 
@@ -160,6 +214,7 @@ AI-Head-Motion-Tracker/
 | 修改音色/音量 | `AudioEngine.js` | js/AudioEngine.js |
 | 新增和弦進行 | `AccompanimentSystem.js` | js/AccompanimentSystem.js |
 | 調整校正邏輯 | `CalibrationSystem.js` | js/CalibrationSystem.js |
+| 修改 CSV 格式 | `CalibrationSystem.js` | js/CalibrationSystem.js (exportCSV/parseCSV) |
 | 優化臉部追蹤 | `FaceTracker.js` | js/FaceTracker.js |
 | 修改 UI 互動 | `UIController.js` | js/UIController.js |
 | 調整樣式 | `style.css` | css/style.css |
@@ -190,6 +245,20 @@ calibrationSystem.recordPose(id, name, smoothYaw, smoothPitch);
 // FaceTracker
 const yaw = faceTracker.getSmoothYaw();    // 左右轉頭
 const pitch = faceTracker.getSmoothPitch(); // 上下點頭
+```
+
+**匯出/匯入 CSV：**
+```javascript
+// CalibrationSystem
+calibrationSystem.exportCSV();  // 匯出當前設定為 CSV
+calibrationSystem.importCSV();  // 觸發檔案選擇器
+calibrationSystem.parseCSV(text); // 解析 CSV 文字內容
+
+// CSV 內容包含：
+// - 全域參數（中心點、靈敏度、觸發半徑）
+// - 音效設定（樂器、音量、音符長度）
+// - 嘴部控制（八度切換開關、觸發模式）
+// - 9 個校正點（座標、半徑、半音偏移、MIDI 音高）
 ```
 
 ### 測試建議
