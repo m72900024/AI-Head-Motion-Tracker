@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 頭部動作感測 (獨立伴奏面板版)</title>
+    
+    <!-- 
+      [離線版製作說明]
+      離線使用時，請確保 JS 檔案在同一目錄，並修改下方的 src 引用。
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 外部樣式表 -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- 核心模組 -->
+    <script src="js/config.js"></script>
+    <script src="js/AudioEngine.js"></script>
+    <script src="js/CalibrationSystem.js"></script>
+    <script src="js/FaceTracker.js"></script>
+    <script src="js/UIController.js"></script>
+    <script src="js/AccompanimentSystem.js"></script>
+</head>
+<body>
+
+    <!-- 隱藏的檔案上傳輸入框 -->
+    <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="handleFileSelect(event)">
+
+    <div id="start-screen" class="start-screen">
+        <div class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-white mb-2 font-chinese">AI 頭部動作感測</h1>
+            <p class="text-gray-400">Head Motion Tracker</p>
+        </div>
+        <button id="start-btn" class="start-btn-large">▶ 點擊開始 (啟動音效)</button>
+        <p class="mt-4 text-sm text-gray-500">點擊後音效將自動開啟</p>
+    </div>
+
+    <div class="camera-container">
+        <div id="loader" class="loader">
+            <div class="spinner"></div>
+            <div>系統初始化中...<br>
+                <span style="font-size:0.8rem; color:#aaa;">
+                    請允許攝影機權限<br>
+                    (若一直顯示此畫面，代表 JS 檔案缺失)
+                </span>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <video id="input_video" playsinline></video>
+            <canvas id="output_canvas"></canvas>
+            
+            <!-- 新增：臉部導引框 HTML -->
+            <div id="face-guide" class="face-guide">
+                <div class="face-guide-text">請將臉部對準框線中央<br><span style='font-size:0.7rem; color:#aaa'>(可滾輪調整大小)</span></div>
+            </div>
+
+            <!-- 新增：和弦顯示看板 -->
+            <div id="chord-display" class="chord-display"></div>
+
+            <!-- 右上角音高數據面板 -->
+            <div id="note-info" class="note-info-panel">
+                <div class="text-[0.6rem] text-gray-400 uppercase tracking-wider mb-1">Current Pitch</div>
+                <div id="current-note-name" class="note-main">--</div>
+                <div id="current-solfege" class="note-sub">等待演奏...</div>
+                <div id="current-freq" class="note-freq mt-1">0 Hz</div>
+            </div>
+            
+            <div class="hud-overlay">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+
+                <div class="data-panel">
+                    <div>YAW: <span id="val-yaw">0.00</span></div>
+                    <div>PITCH: <span id="val-pitch">0.00</span></div>
+                    <div style="margin-top:5px; font-size: 0.8rem; opacity: 0.7;">FPS: <span id="val-fps">0</span></div>
+                    <div style="margin-top:5px; color: #fbbf24;" id="mode-indicator">模式: 可調式圓圈觸發</div>
+                    <div id="octave-indicator" class="octave-badge">🎹 音高: 標準</div>
+                    <div style="margin-top:5px;">狀態: <span id="trigger-state" class="text-green-400">就緒</span></div>
+                </div>
+
+                <div class="status-panel">
+                    <div class="text-xs text-cyan-400 mb-1">DETECTED ACTION</div>
+                    <div class="flex items-center justify-center">
+                        <div id="status-text" class="status-text">WAITING...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 獨立的伴奏按鈕 -->
+        <button class="btn-base accomp-btn" onclick="toggleAccompPanel()">🎹 伴奏設定</button>
+        <button class="btn-base toggle-btn" onclick="toggleCalibration()">⚙️ 校正與設定</button>
+        
+        <button id="sound-toggle" class="btn-base sound-btn" onclick="toggleSound()">
+            <span>🔇</span> 點擊開啟音效 (請檢查靜音鍵)
+        </button>
+
+        <div id="calib-panel" class="side-panel">
+            <h3 class="text-lg font-bold mb-2 border-b border-gray-700 pb-2">校正與設定</h3>
+            
+            <div class="mb-3 pb-2">
+                <label class="text-xs text-blue-400 block mb-2 font-bold">📁 設定檔 (Profile)</label>
+                <div class="flex gap-2">
+                    <button onclick="switchProfile(1)" id="profile-btn-1" class="profile-btn active">1</button>
+                    <button onclick="switchProfile(2)" id="profile-btn-2" class="profile-btn">2</button>
+                    <button onclick="switchProfile(3)" id="profile-btn-3" class="profile-btn">3</button>
+                </div>
+            </div>
+            
+            <div class="mode-switch">
+                <button id="mode-rec-btn" onclick="setEditMode(false)" class="active-rec">🔴 錄製位置</button>
+                <button id="mode-edit-btn" onclick="setEditMode(true)">🔵 編輯參數</button>
+            </div>
+
+            <div id="rec-controls">
+                <button onclick="setCenter()" class="mb-2 w-full bg-cyan-900/50 hover:bg-cyan-900 text-cyan-200 py-2 rounded text-xs border border-cyan-800 flex items-center justify-center gap-2">
+                    <span>🎯</span> 手動設定當前為中心點
+                </button>
+
+                <button id="range-btn" onclick="toggleRangeDetection()" class="mb-3 w-full bg-purple-900/50 hover:bg-purple-900 text-purple-200 py-2 rounded text-xs border border-purple-800 flex items-center justify-center gap-2">
+                    <span>🌀</span> 開始圓形範圍偵測 (推薦)
+                </button>
+                <p id="range-hint" class="text-[0.6rem] text-gray-400 mb-2 hidden">請輕鬆地用頭部<b>轉動一個圓圈</b>，不用刻意到極限。</p>
+            </div>
+
+            <p id="grid-hint" class="text-xs text-gray-400">點擊下方按鈕錄製位置：</p>
+            <div class="grid-3x3">
+                <button class="calib-btn" id="btn-1" onclick="handleGridClick(1, 'Do (1)')">1<small>Do</small></button>
+                <button class="calib-btn" id="btn-2" onclick="handleGridClick(2, 'Re (2)')">2<small>Re</small></button>
+                <button class="calib-btn" id="btn-3" onclick="handleGridClick(3, 'Mi (3)')">3<small>Mi</small></button>
+                <button class="calib-btn" id="btn-4" onclick="handleGridClick(4, 'Fa (4)')">4<small>Fa</small></button>
+                <button class="calib-btn" id="btn-5" onclick="handleGridClick(5, '無 (5)')">5<small>無</small></button>
+                <button class="calib-btn" id="btn-6" onclick="handleGridClick(6, 'So (6)')">6<small>So</small></button>
+                <button class="calib-btn" id="btn-7" onclick="handleGridClick(7, 'La (7)')">7<small>La</small></button>
+                <button class="calib-btn" id="btn-8" onclick="handleGridClick(8, 'Si (8)')">8<small>Si</small></button>
+                <button class="calib-btn" id="btn-9" onclick="handleGridClick(9, 'High Do')">9<small>High Do</small></button>
+            </div>
+
+            <!-- 個別設定面板 -->
+            <div id="point-settings-panel" class="point-settings hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-amber-400">設定: <span id="selected-point-name">無</span></span>
+                </div>
+                
+                <!-- 新增：基音選擇 -->
+                <div class="mb-2">
+                    <label class="text-[0.6rem] text-gray-400 block mb-1">🎵 設定基音 (Base Note)</label>
+                    <select id="base-note-select" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600 w-full">
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+                
+                <div class="mb-2">
+                    <label class="text-[0.6rem] text-gray-400 block mb-1">升降微調 (Semitone)</label>
+                    <div class="flex gap-1">
+                        <button onclick="setPointSemitone(-1)" id="semitone-flat-btn" class="semitone-btn">♭</button>
+                        <button onclick="setPointSemitone(0)" id="semitone-std-btn" class="semitone-btn active">♮</button>
+                        <button onclick="setPointSemitone(1)" id="semitone-sharp-btn" class="semitone-btn">♯</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[0.6rem] text-gray-400 block mb-1">個別半徑: <span id="point-radius-val">40</span></label>
+                    <input type="range" id="point-radius-slider" min="10" max="120" step="1" value="40" class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            
+            <!-- 全局圓圈大小 (已隱藏) -->
+            <div class="mt-4 pt-2 border-t border-gray-700 hidden">
+                <label class="text-xs text-green-400 block mb-2 font-bold">🎯 全局圓圈大小</label>
+                <div class="flex items-center gap-2">
+                    <input type="range" id="radius-slider" min="10" max="120" step="1" value="40" class="flex-grow">
+                    <span id="radius-val" class="text-xs text-gray-300 w-6">40</span>
+                </div>
+            </div>
+
+            <div class="mt-2">
+                <label class="text-xs text-gray-400 block mb-2">反應靈敏度</label>
+                <input type="range" id="speed-slider" min="0.02" max="0.5" step="0.01" value="0.15">
+            </div>
+
+            <!-- 音效設定區塊 -->
+            <div class="section-title">🎵 音效設定</div>
+            
+            <div class="flex items-center justify-between mb-2 p-2 bg-gray-800 rounded border border-gray-600">
+                <label class="text-xs text-gray-300 font-bold cursor-pointer" for="return-center-toggle">回中重置 (單次觸發)</label>
+                <!-- 移除 checked 屬性，預設不開啟 -->
+                <input type="checkbox" id="return-center-toggle" class="w-4 h-4 accent-purple-500 cursor-pointer">
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-300">樂器:</label>
+                    <select id="instrument-select" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
+                        <option value="piano">🎹 模擬鋼琴</option>
+                        <option value="8bit">👾 8-Bit 電子音</option>
+                        <option value="flute">🌬️ 長笛</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between"><label class="text-[0.6rem] text-gray-400">音量:</label><span id="vol-val" class="text-[0.6rem] text-gray-300">50%</span></div>
+                    <input type="range" id="vol-slider" min="0" max="100" step="1" value="50" class="accent-purple-500">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between"><label class="text-[0.6rem] text-gray-400">長度:</label><span id="dur-val" class="text-[0.6rem] text-gray-300">1.5s</span></div>
+                    <input type="range" id="dur-slider" min="0.1" max="3.0" step="0.1" value="1.5" class="accent-purple-500">
+                </div>
+            </div>
+
+            <!-- 新增嘴部控制區塊 (已恢復顯示) -->
+            <div>
+                <div class="section-title">👄 嘴部控制 (八度切換)</div>
+                <div class="flex flex-col gap-2 mb-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-gray-300" for="mouth-enable-check">啟用嘴部八度控制</label>
+                        <input type="checkbox" id="mouth-enable-check" checked class="w-4 h-4 accent-pink-500">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs text-gray-400">觸發動作:</label>
+                        <select id="mouth-trigger-mode" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
+                            <option value="close" selected>🤐 閉嘴瞬間切換 (預設)</option>
+                            <option value="open">😮 張嘴瞬間切換</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="debug-checkbox mt-4">
+                <input type="checkbox" id="show-zones" checked onchange="toggleZones()">
+                <label for="show-zones" class="text-yellow-200">顯示觸發圈</label>
+            </div>
+            <!-- 新增：控制導引框的開關 -->
+            <div class="debug-checkbox">
+                <input type="checkbox" id="show-guide" checked onchange="toggleGuide()">
+                <label for="show-guide" class="text-cyan-200">顯示面部導引框</label>
+            </div>
+            <div class="debug-checkbox">
+                <input type="checkbox" id="show-debug" checked onchange="toggleDebug()">
+                <label for="show-debug">顯示軌跡紅點 & 嘴部偵測</label>
+            </div>
+            
+            <div class="mt-4 border-t border-gray-700 pt-3 flex gap-2">
+                <button onclick="saveConfig()" class="flex-1 bg-green-900/50 hover:bg-green-900 text-green-200 py-1 px-2 rounded text-xs border border-green-800">💾 儲存</button>
+                <button onclick="loadConfig()" class="flex-1 bg-blue-900/50 hover:bg-blue-900 text-blue-200 py-1 px-2 rounded text-xs border border-blue-800">📂 讀取</button>
+            </div>
+            <div class="mt-2 flex gap-2">
+                 <button onclick="exportCSV()" class="flex-1 bg-yellow-900/50 hover:bg-yellow-900 text-yellow-200 py-1 px-2 rounded text-xs border border-yellow-800">📤 匯出 CSV</button>
+                 <button onclick="importCSV()" class="flex-1 bg-cyan-900/50 hover:bg-cyan-900 text-cyan-200 py-1 px-2 rounded text-xs border border-cyan-800">📥 匯入 CSV</button>
+            </div>
+            <button onclick="resetCalibration()" class="mt-2 w-full bg-red-900/50 hover:bg-red-900 text-red-200 py-2 rounded text-xs border border-red-800">🗑️ 重置當前設定</button>
+        </div>
+
+        <!-- 獨立的伴奏面板 -->
+        <div id="accomp-panel" class="side-panel">
+            <h3 class="text-lg font-bold mb-2 border-b border-gray-700 pb-2">🎹 伴奏設定</h3>
+            <!-- 自動和弦伴奏區塊 (Auto Chords) -->
+            <div class="section-title">自動和弦伴奏 (Auto Chords)</div>
+            <div class="flex flex-col gap-2 p-2 bg-gray-800 rounded border border-gray-600">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-400">選擇曲風/進行:</label>
+                    <select id="chord-prog-select" class="bg-gray-700 text-xs text-white p-1 rounded border border-gray-500">
+                        <option value="none">-- 關閉 --</option>
+                        <option value="metronome_4" selected>⏱ 純節拍器 (4/4拍)</option>
+                        <option value="metronome_3">⏱ 純節拍器 (3/4拍)</option>
+                        <!-- 更新選單名稱為 F 大調 -->
+                        <option value="amazing_grace">🙏 奇異恩典 (3/4拍, F大調)</option>
+                        <option value="pop_c">🎸 流行 C 大調 (4/4拍, C-G-Am-F)</option>
+                        <option value="canon">🎻 卡農進行 (4/4拍)</option>
+                        <option value="basic_1451">🎼 基礎 I-IV-V-I (4/4拍)</option>
+                    </select>
+                </div>
+                
+                <!-- New Section Selector -->
+                <div id="section-select-container" class="flex flex-col gap-1 mt-1 hidden">
+                    <label class="text-[0.6rem] text-gray-400">練習段落 (Practice Section):</label>
+                    <select id="section-select" class="bg-gray-700 text-xs text-white p-1 rounded border border-gray-500">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1 mt-1">
+                    <label class="text-[0.6rem] text-gray-400">伴奏音色:</label>
+                    <select id="chord-instrument-select" class="bg-gray-700 text-xs text-white p-1 rounded border border-gray-500">
+                        <option value="soft_pad">☁️ 柔和墊音 (Soft Pad)</option>
+                        <option value="piano" selected>🎹 電鋼琴 (E.Piano)</option> <!-- 預設改為電鋼琴，效果較明顯 -->
+                        <option value="strings">🎻 合成弦樂 (Synth Strings)</option>
+                        <option value="pluck">🎸 撥弦 (Pluck)</option>
+                    </select>
+                </div>
+
+                <!-- 新增：分解和弦開關 -->
+                <div class="flex items-center gap-2 mt-2 bg-gray-700/50 p-1 rounded">
+                    <input type="checkbox" id="arpeggio-check" class="w-4 h-4 accent-pink-500 cursor-pointer">
+                    <label for="arpeggio-check" class="text-xs text-gray-200 cursor-pointer font-bold">分解和弦 (Arpeggio)</label>
+                </div>
+
+                <!-- 新增：節拍器開關 -->
+                <div class="flex items-center gap-2 mt-1 bg-gray-700/50 p-1 rounded">
+                    <input type="checkbox" id="metronome-check" class="w-4 h-4 accent-red-500 cursor-pointer">
+                    <label for="metronome-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">開啟節拍器 (Click)</label>
+                    <div id="metronome-light" class="metronome-light" title="節拍指示燈"></div>
+                </div>
+                
+                <div class="flex gap-2 items-center mt-2">
+                    <button onclick="toggleAutoChords()" id="chord-play-btn" class="flex-1 bg-green-800/60 hover:bg-green-700 text-white py-1 rounded text-xs border border-green-600">▶ 開始伴奏</button>
+                </div>
+
+                <div class="flex items-center justify-between mt-1">
+                    <label class="text-[0.6rem] text-gray-400">速度 (BPM): <span id="bpm-val" class="text-gray-300">100</span></label>
+                </div>
+                <input type="range" id="bpm-slider" min="40" max="180" step="1" value="100" class="accent-pink-500 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+
+                <div class="flex items-center justify-between mt-1">
+                    <label class="text-[0.6rem] text-gray-400">伴奏音量:</label>
+                    <span id="chord-vol-val" class="text-[0.6rem] text-gray-300">30%</span>
+                </div>
+                <input type="range" id="chord-vol-slider" min="0" max="100" step="1" value="30" class="accent-cyan-500 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 安全檢查：確保 JS 庫載入
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("Error:", message);
+            if (message.includes("FaceMesh") || message.includes("Camera")) {
+                const loader = document.getElementById('loader');
+                if(loader) loader.innerHTML = `<div style="color:red; text-align:center;">程式庫載入失敗<br>請確認 JS 檔案是否存在</div>`;
+            }
+        };
+
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const statusText = document.getElementById('status-text');
+        const loader = document.getElementById('loader');
+        
+        // Panels
+        const calibPanel = document.getElementById('calib-panel');
+        const accompPanel = document.getElementById('accomp-panel'); 
+        
+        const modeIndicator = document.getElementById('mode-indicator');
+        const soundBtn = document.getElementById('sound-toggle');
+        const showDebugCheck = document.getElementById('show-debug');
+        const showZonesCheck = document.getElementById('show-zones');
+        const showGuideCheck = document.getElementById('show-guide'); 
+        const faceGuide = document.getElementById('face-guide'); 
+        const chordDisplay = document.getElementById('chord-display'); 
+        const speedSlider = document.getElementById('speed-slider');
+        const radiusSlider = document.getElementById('radius-slider');
+        const radiusValDisplay = document.getElementById('radius-val');
+        const rangeBtn = document.getElementById('range-btn');
+        const rangeHint = document.getElementById('range-hint');
+        const triggerStateText = document.getElementById('trigger-state');
+        const octaveIndicator = document.getElementById('octave-indicator');
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        const csvInput = document.getElementById('csv-input');
+        
+        // New UI for Note Info
+        const currentNoteNameDisplay = document.getElementById('current-note-name');
+        const currentSolfegeDisplay = document.getElementById('current-solfege');
+        const currentFreqDisplay = document.getElementById('current-freq');
+        const noteInfoPanel = document.getElementById('note-info');
+
+        // Edit Mode UI
+        const pointSettingsPanel = document.getElementById('point-settings-panel');
+        const selectedPointName = document.getElementById('selected-point-name');
+        const pointRadiusSlider = document.getElementById('point-radius-slider');
+        const pointRadiusVal = document.getElementById('point-radius-val');
+        const gridHint = document.getElementById('grid-hint');
+        const recControls = document.getElementById('rec-controls');
+        const modeRecBtn = document.getElementById('mode-rec-btn');
+        const modeEditBtn = document.getElementById('mode-edit-btn');
+        const baseNoteSelect = document.getElementById('base-note-select');
+
+        // Sound Setting UI Elements
+        const returnCenterToggle = document.getElementById('return-center-toggle');
+        const instrumentSelect = document.getElementById('instrument-select');
+        const volSlider = document.getElementById('vol-slider');
+        const volValDisplay = document.getElementById('vol-val');
+        const durSlider = document.getElementById('dur-slider');
+        const durValDisplay = document.getElementById('dur-val');
+
+        // Auto Chords UI Elements
+        const chordProgSelect = document.getElementById('chord-prog-select');
+        const sectionSelectContainer = document.getElementById('section-select-container');
+        const sectionSelect = document.getElementById('section-select');
+        const chordPlayBtn = document.getElementById('chord-play-btn');
+        const bpmSlider = document.getElementById('bpm-slider');
+        const bpmVal = document.getElementById('bpm-val');
+        const chordVolSlider = document.getElementById('chord-vol-slider');
+        const chordVolVal = document.getElementById('chord-vol-val');
+        const chordInstrumentSelect = document.getElementById('chord-instrument-select');
+        const metronomeCheck = document.getElementById('metronome-check');
+        const metronomeLight = document.getElementById('metronome-light');
+
+        // Mouth Control UI Elements
+        const mouthEnableCheck = document.getElementById('mouth-enable-check');
+        const mouthTriggerModeSelect = document.getElementById('mouth-trigger-mode');
+
+        const valYaw = document.getElementById('val-yaw');
+        const valPitch = document.getElementById('val-pitch');
+        const valFps = document.getElementById('val-fps');
+        
+        let lastTime = 0;
+        let frameCount = 0;
+        
+        let rawYaw = 0, rawPitch = 0;
+        let smoothYaw = 0, smoothPitch = 0;
+        let centerOffset = { yaw: 0, pitch: 0.45 };
+        
+        let smoothingFactor = 0.15; 
+        speedSlider.addEventListener('input', (e) => { smoothingFactor = parseFloat(e.target.value); });
+
+        let defaultTriggerRadius = 40;
+        radiusSlider.addEventListener('input', (e) => { 
+            defaultTriggerRadius = parseInt(e.target.value); 
+            radiusValDisplay.innerText = defaultTriggerRadius;
+            for(let id in calibrationData) {
+                calibrationData[id].radius = defaultTriggerRadius;
+            }
+        });
+
+        let soundSettings = {
+            returnToCenter: false, 
+            instrument: 'piano',
+            volume: 0.5,
+            duration: 1.5
+        };
+
+        returnCenterToggle.addEventListener('change', (e) => { soundSettings.returnToCenter = e.target.checked; });
+        instrumentSelect.addEventListener('change', (e) => { 
+            soundSettings.instrument = e.target.value; 
+            playNote(523.25, null, true); 
+        });
+        volSlider.addEventListener('input', (e) => { 
+            soundSettings.volume = parseInt(e.target.value) / 100; 
+            volValDisplay.innerText = `${e.target.value}%`;
+        });
+        volSlider.addEventListener('change', () => playNote(523.25, null, true));
+        durSlider.addEventListener('input', (e) => { 
+            soundSettings.duration = parseFloat(e.target.value); 
+            durValDisplay.innerText = `${e.target.value}s`;
+        });
+
+        // --- Auto Chords Logic (使用模組化的 AccompanimentSystem) ---
+        const accompaniment = new AccompanimentSystem({
+            bpm: 100,
+            volume: 0.3,
+            instrument: 'soft_pad',
+            metronomeEnabled: false,
+            isArpeggio: false,
+
+            // 小節變更回調 - 更新 UI 顯示
+            onBarChange: (data) => {
+                let melodyHint = '';
+                if (data.hint) {
+                    melodyHint = `<div style="font-size: 1.8rem; color: #00ffcc; margin-top: 8px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.8); font-family: 'Share Tech Mono', monospace;">${data.hint}</div>`;
+                }
+                const displayBarNum = data.measureNumber || data.barIndex + 1;
+                chordDisplay.innerHTML = `
+                    <div style="font-size: 1rem; color: #9ca3af; text-shadow: none; margin-bottom: -5px;">第 ${displayBarNum} 小節</div>
+                    <div style="line-height: 1;">${data.chord === 'NC' ? 'Metronome' : data.chord}</div>
+                    ${melodyHint}
+                `;
+            },
+
+            // 節拍器回調 - 閃爍燈號
+            onMetronomeBeat: (data) => {
+                flashMetronomeLight(data.isAccent);
+            },
+
+            // 狀態變更回調 - 更新按鈕
+            onStateChange: (data) => {
+                if (data.state === 'playing') {
+                    chordPlayBtn.innerText = "⏹ 停止伴奏";
+                    chordPlayBtn.classList.replace("bg-green-800/60", "bg-red-800/60");
+                    chordPlayBtn.classList.replace("border-green-600", "border-red-600");
+                    chordDisplay.classList.add('active');
+                } else {
+                    chordPlayBtn.innerText = "▶ 開始伴奏";
+                    chordPlayBtn.classList.replace("bg-red-800/60", "bg-green-800/60");
+                    chordPlayBtn.classList.replace("border-red-600", "border-green-600");
+                    chordDisplay.classList.remove('active');
+                    chordDisplay.innerText = "";
+                }
+            }
+        });
+
+        // UI 事件綁定
+        chordInstrumentSelect.addEventListener('change', (e) => {
+            accompaniment.setInstrument(e.target.value);
+        });
+
+        chordProgSelect.addEventListener('change', (e) => {
+            const key = e.target.value;
+            const sections = accompaniment.selectProgression(key);
+
+            if (sections) {
+                sectionSelectContainer.classList.remove('hidden');
+                sectionSelect.innerHTML = '';
+                sections.forEach((sec, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = idx;
+                    opt.innerText = sec.name;
+                    sectionSelect.appendChild(opt);
+                });
+            } else {
+                sectionSelectContainer.classList.add('hidden');
+            }
+        });
+
+        sectionSelect.addEventListener('change', (e) => {
+            accompaniment.selectSection(parseInt(e.target.value) || 0);
+        });
+
+        bpmSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            bpmVal.innerText = value;
+            accompaniment.setBpm(value);
+        });
+
+        chordVolSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value) / 100;
+            chordVolVal.innerText = `${e.target.value}%`;
+            accompaniment.setVolume(value);
+        });
+
+        document.getElementById('arpeggio-check').addEventListener('change', (e) => {
+            accompaniment.setArpeggio(e.target.checked);
+        });
+
+        metronomeCheck.addEventListener('change', (e) => {
+            accompaniment.setMetronome(e.target.checked);
+        });
+
+        function toggleAutoChords() {
+            const key = chordProgSelect.value;
+            if (key === 'none' && !accompaniment.isPlaying) {
+                showFeedback("⚠️ 請先選擇曲風");
+                return;
+            }
+
+            // 確保 audioCtx 已初始化並傳給模組
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            accompaniment.setAudioContext(audioCtx);
+
+            accompaniment.toggle(key);
+        }
+
+        // 節拍器燈號閃爍（保留原有視覺效果）
+        function flashMetronomeLight(isAccent) {
+            metronomeLight.classList.add('active');
+            if (isAccent) {
+                metronomeLight.style.background = '#00ffcc';
+                metronomeLight.style.boxShadow = '0 0 15px #00ffcc';
+            } else {
+                metronomeLight.style.background = '#ef4444';
+                metronomeLight.style.boxShadow = '0 0 10px #ef4444';
+            }
+            setTimeout(() => {
+                metronomeLight.classList.remove('active');
+                metronomeLight.style.background = '#334155';
+                metronomeLight.style.boxShadow = 'none';
+            }, 100);
+        }
+
+        // 為了向後相容，保留這些變數的存取
+        function getAccompanimentState() {
+            return accompaniment.getState();
+        }
+
+        // Mouth Control Settings
+        let mouthControlEnabled = true;
+        let mouthTriggerMode = 'close'; 
+
+        mouthEnableCheck.addEventListener('change', (e) => { mouthControlEnabled = e.target.checked; });
+        mouthTriggerModeSelect.addEventListener('change', (e) => { mouthTriggerMode = e.target.value; });
+
+        let lastDetectedId = null; 
+        let isArmed = true; 
+
+        let isDebugVisible = true;
+        let isZonesVisible = true;
+        let calibrationData = {}; 
+        let faceGuideScale = 1.0; 
+
+        let isRangeDetecting = false;
+        let rangeMinYaw = Infinity, rangeMaxYaw = -Infinity;
+        let rangeMinPitch = Infinity, rangeMaxPitch = -Infinity;
+        let rangeTrace = [];
+
+        let isDragging = false;
+        let draggedPointId = null;
+
+        let isEditMode = false;
+        let selectedPointId = null;
+
+        let isHighOctave = false;
+        let wasMouthOpen = false;
+        const MOUTH_OPEN_THRESHOLD = 0.08; 
+
+        let audioCtx = null;
+        let isSoundEnabled = false; 
+
+        let currentProfileIndex = 1;
+        const STORAGE_KEY_PREFIX = 'head_tracker_config_v11_profile_';
+
+        function switchProfile(index) {
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`profile-btn-${i}`);
+                if (i === index) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+            currentProfileIndex = index;
+            loadConfig();
+            showFeedback(`📂 已切換至設定檔 ${index}`);
+        }
+
+        // --- Music Logic Constants ---
+        const DEFAULT_BASE_MIDI = {
+            1: 60, 2: 62, 3: 64, 4: 65, 5: null, 6: 67, 7: 69, 8: 71, 9: 72
+        };
+        const SOLFEGE_MAP = {
+            1: "Do", 2: "Re", 3: "Mi", 4: "Fa", 5: "Rest", 6: "So", 7: "La", 8: "Si", 9: "Do"
+        };
+        
+        const NOTE_FREQS = {
+            1: 261.63, // C4
+            2: 293.66, // D4
+            3: 329.63, // E4
+            4: 349.23, // F4
+            5: 0,      // Rest
+            6: 392.00, // G4
+            7: 440.00, // A4
+            8: 493.88, // B4
+            9: 523.25  // C5
+        };
+        
+        const NOTE_NAMES = {
+            1: "Do", 2: "Re", 3: "Mi", 4: "Fa", 5: "Center", 6: "So", 7: "La", 8: "Si", 9: "High Do"
+        };
+
+        const NOTE_STRS = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+
+        // Note Selection Options (C3 to C5)
+        const NOTE_OPTIONS = [];
+        for(let m=48; m<=72; m++) {
+            const noteIndex = m % 12;
+            const octave = Math.floor(m / 12) - 1;
+            const name = NOTE_STRS[noteIndex] + octave;
+            NOTE_OPTIONS.push({ midi: m, name: name });
+        }
+        NOTE_OPTIONS.push({ midi: -1, name: "無聲 (Rest)" });
+
+        // Populate Dropdown
+        NOTE_OPTIONS.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.midi;
+            el.innerText = opt.name;
+            baseNoteSelect.appendChild(el);
+        });
+
+        baseNoteSelect.addEventListener('change', (e) => {
+            if (selectedPointId && calibrationData[selectedPointId]) {
+                const midi = parseInt(e.target.value);
+                calibrationData[selectedPointId].baseMidi = (midi === -1) ? null : midi;
+                saveConfig();
+                playNote(0, selectedPointId, true); // Preview
+            }
+        });
+
+
+        document.body.addEventListener('touchstart', function() {
+            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
+        }, { once: true, passive: true });
+        
+        document.body.addEventListener('click', function() {
+            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
+        }, { once: true });
+
+        startBtn.addEventListener('click', async () => {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            isSoundEnabled = true;
+            soundBtn.innerHTML = "<span>🔊</span> 音效已開啟";
+            soundBtn.classList.add('active');
+            startScreen.style.opacity = '0';
+            setTimeout(() => { startScreen.style.display = 'none'; }, 500);
+            playNote(523.25, null, true);
+            
+            if(showGuideCheck.checked) {
+                faceGuide.classList.add('active');
+                setTimeout(() => {
+                    if (faceGuide.classList.contains('active')) {
+                        faceGuide.classList.remove('active');
+                        showGuideCheck.checked = false; 
+                    }
+                }, 15000);
+            }
+        });
+
+        function getLogicalPos(evt, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
+            const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
+            const visualX = clientX - rect.left;
+            const visualY = clientY - rect.top;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const logicalX = (rect.width - visualX) * scaleX; 
+            const logicalY = visualY * scaleY;
+            return { x: logicalX, y: logicalY };
+        }
+
+        function handleStart(evt) {
+            if (!isDebugVisible && !isZonesVisible) return;
+            const pos = getLogicalPos(evt, canvasElement);
+            for (const [id, data] of Object.entries(calibrationData)) {
+                 const cx = mapToCanvas(data.yaw, true, canvasElement.width, canvasElement.height);
+                 const cy = mapToCanvas(data.pitch, false, canvasElement.width, canvasElement.height);
+                 const r = data.radius || defaultTriggerRadius;
+                 const dist = Math.sqrt((pos.x - cx)**2 + (pos.y - cy)**2);
+                 if (dist < r) { 
+                     isDragging = true; draggedPointId = id; canvasElement.style.cursor = 'grabbing'; 
+                     if(isEditMode) selectPoint(id);
+                     break;
+                 }
+            }
+        }
+
+        function handleMove(evt) {
+            const pos = getLogicalPos(evt, canvasElement);
+            if (isDragging && draggedPointId) {
+                if (evt.preventDefault) evt.preventDefault();
+                const w = canvasElement.width;
+                const h = canvasElement.height;
+                const newYaw = (pos.x / w - 0.5); 
+                const newPitch = (pos.y / h - 0.5);
+                calibrationData[draggedPointId].yaw = newYaw;
+                calibrationData[draggedPointId].pitch = newPitch;
+            } else if (isDebugVisible || isZonesVisible) {
+                let hovering = false;
+                for (const [id, data] of Object.entries(calibrationData)) {
+                     const cx = mapToCanvas(data.yaw, true, canvasElement.width, canvasElement.height);
+                     const cy = mapToCanvas(data.pitch, false, canvasElement.width, canvasElement.height);
+                     const r = data.radius || defaultTriggerRadius;
+                     const dist = Math.sqrt((pos.x - cx)**2 + (pos.y - cy)**2);
+                     if (dist < r) hovering = true;
+                }
+                canvasElement.style.cursor = hovering ? 'grab' : 'default';
+            }
+        }
+
+        function handleEnd() { isDragging = false; draggedPointId = null; canvasElement.style.cursor = 'default'; }
+
+        function handleWheel(evt) {
+            let handled = false;
+            if (isZonesVisible) {
+                const pos = getLogicalPos(evt, canvasElement);
+                let hoveredId = null;
+                for (const [id, data] of Object.entries(calibrationData)) {
+                     const cx = mapToCanvas(data.yaw, true, canvasElement.width, canvasElement.height);
+                     const cy = mapToCanvas(data.pitch, false, canvasElement.width, canvasElement.height);
+                     const r = data.radius || defaultTriggerRadius;
+                     const dist = Math.sqrt((pos.x - cx)**2 + (pos.y - cy)**2);
+                     if (dist < r) { hoveredId = id; break; }
+                }
+                
+                if (hoveredId) {
+                    evt.preventDefault();
+                    const delta = Math.sign(evt.deltaY) * -5;
+                    let newR = (calibrationData[hoveredId].radius || defaultTriggerRadius) + delta;
+                    newR = Math.max(10, Math.min(200, newR));
+                    calibrationData[hoveredId].radius = newR;
+                    if(selectedPointId == hoveredId) {
+                        pointRadiusSlider.value = newR;
+                        pointRadiusVal.innerText = newR;
+                    }
+                    handled = true; 
+                    return;
+                }
+            }
+
+            if (!handled && faceGuide && faceGuide.classList.contains('active')) {
+                evt.preventDefault();
+                const delta = Math.sign(evt.deltaY) * -0.1; 
+                faceGuideScale += delta;
+                faceGuideScale = Math.max(0.5, Math.min(3.0, faceGuideScale)); 
+                faceGuide.style.transform = `translate(-50%, -50%) scale(${faceGuideScale})`;
+            }
+        }
+
+        canvasElement.addEventListener('mousedown', handleStart);
+        canvasElement.addEventListener('mousemove', handleMove);
+        canvasElement.addEventListener('mouseup', handleEnd);
+        canvasElement.addEventListener('mouseleave', handleEnd);
+        canvasElement.addEventListener('touchstart', handleStart, {passive: false});
+        canvasElement.addEventListener('touchmove', handleMove, {passive: false});
+        canvasElement.addEventListener('touchend', handleEnd);
+        canvasElement.addEventListener('wheel', handleWheel, {passive: false});
+
+        function saveConfig() {
+            const config = { calibrationData, centerOffset, defaultTriggerRadius, smoothingFactor, soundSettings, mouthControlEnabled, mouthTriggerMode };
+            try {
+                const key = STORAGE_KEY_PREFIX + currentProfileIndex;
+                localStorage.setItem(key, JSON.stringify(config));
+                showFeedback(`✅ 設定檔 ${currentProfileIndex} 已儲存！`);
+            } catch (e) { showFeedback("❌ 儲存失敗"); }
+        }
+
+        function loadConfig() {
+            calibrationData = {};
+            centerOffset = { yaw: 0, pitch: 0.45 };
+            defaultTriggerRadius = 40;
+            radiusSlider.value = 40;
+            radiusValDisplay.innerText = 40;
+            
+            const key = STORAGE_KEY_PREFIX + currentProfileIndex;
+            const json = localStorage.getItem(key);
+            if (json) {
+                try {
+                    const config = JSON.parse(json);
+                    if (config.calibrationData) calibrationData = config.calibrationData;
+                    if (config.centerOffset) centerOffset = config.centerOffset;
+                    if (config.defaultTriggerRadius) {
+                        defaultTriggerRadius = config.defaultTriggerRadius;
+                        radiusSlider.value = defaultTriggerRadius;
+                        radiusValDisplay.innerText = defaultTriggerRadius;
+                    }
+                    if (config.smoothingFactor) {
+                        smoothingFactor = config.smoothingFactor;
+                        speedSlider.value = smoothingFactor;
+                    }
+                    if (config.soundSettings) {
+                        soundSettings = config.soundSettings;
+                        if(soundSettings.returnToCenter === undefined) soundSettings.returnToCenter = false;
+                        returnCenterToggle.checked = soundSettings.returnToCenter;
+                        instrumentSelect.value = soundSettings.instrument;
+                        volSlider.value = soundSettings.volume * 100;
+                        volValDisplay.innerText = `${Math.round(soundSettings.volume * 100)}%`;
+                        durSlider.value = soundSettings.duration;
+                        durValDisplay.innerText = `${soundSettings.duration}s`;
+                    }
+                    if (config.mouthControlEnabled !== undefined) {
+                        mouthControlEnabled = config.mouthControlEnabled;
+                        mouthEnableCheck.checked = mouthControlEnabled;
+                    }
+                    if (config.mouthTriggerMode !== undefined) {
+                        mouthTriggerMode = config.mouthTriggerMode;
+                        mouthTriggerModeSelect.value = mouthTriggerMode;
+                    }
+
+                    document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
+                    for (let id in calibrationData) {
+                        const btn = document.getElementById(`btn-${id}`);
+                        if(btn) btn.classList.add('recorded');
+                    }
+                } catch (e) { showFeedback("❌ 讀取失敗"); }
+            } else {
+                document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
+                showFeedback(`ℹ️ 設定檔 ${currentProfileIndex} 為空`);
+            }
+            updateModeDisplay();
+            selectedPointId = null;
+            pointSettingsPanel.classList.add('hidden');
+            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
+        }
+
+        function importCSV() {
+            csvInput.click();
+        }
+
+        function handleFileSelect(evt) {
+            const file = evt.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    parseCSV(text);
+                } catch (error) {
+                    console.error(error);
+                    showFeedback("❌ 檔案解析失敗");
+                }
+                csvInput.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\n/);
+            let isDataSection = false;
+            
+            let newCenterOffset = { ...centerOffset };
+            let newSmoothing = smoothingFactor;
+            let newTriggerRadius = defaultTriggerRadius;
+            let newSoundSettings = { ...soundSettings };
+            let newCalibrationData = {};
+            let newMouthEnabled = mouthControlEnabled;
+            let newMouthTrigger = mouthTriggerMode;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                if (line.startsWith("ID,Yaw,Pitch")) {
+                    isDataSection = true;
+                    continue;
+                }
+
+                const parts = line.split(',');
+                if (parts.length < 2) continue;
+
+                if (!isDataSection) {
+                    const key = parts[0].trim();
+                    const val = parts[1].trim();
+                    
+                    switch(key) {
+                        case 'Center_Yaw': newCenterOffset.yaw = parseFloat(val); break;
+                        case 'Center_Pitch': newCenterOffset.pitch = parseFloat(val); break;
+                        case 'Smoothing': newSmoothing = parseFloat(val); break;
+                        case 'Trigger_Radius_Global': newTriggerRadius = parseInt(val); break;
+                        case 'Sound_Instrument': newSoundSettings.instrument = val; break;
+                        case 'Sound_Volume': newSoundSettings.volume = parseFloat(val); break;
+                        case 'Sound_Duration': newSoundSettings.duration = parseFloat(val); break;
+                        case 'Sound_ReturnToCenter': newSoundSettings.returnToCenter = (val === 'true'); break;
+                        case 'Mouth_Control_Enabled': newMouthEnabled = (val === 'true'); break;
+                        case 'Mouth_Trigger_Mode': newMouthTrigger = val; break;
+                    }
+                } else {
+                    const id = parseInt(parts[0]);
+                    if (id >= 1 && id <= 9) {
+                        const yaw = parseFloat(parts[1]);
+                        const pitch = parseFloat(parts[2]);
+                        if (!isNaN(yaw) && !isNaN(pitch)) {
+                            const rad = parts[3] ? parseInt(parts[3]) : newTriggerRadius;
+                            const semi = parts[4] ? parseInt(parts[4]) : 0;
+                            const base = (parts[5] && parts[5] !== '') ? parseInt(parts[5]) : DEFAULT_BASE_MIDI[id];
+                            const name = parts[6] || NOTE_NAMES[id];
+
+                            newCalibrationData[id] = {
+                                yaw: yaw,
+                                pitch: pitch,
+                                radius: rad,
+                                semitoneShift: semi,
+                                baseMidi: base,
+                                name: name
+                            };
+                        }
+                    }
+                }
+            }
+
+            centerOffset = newCenterOffset;
+            smoothingFactor = newSmoothing;
+            defaultTriggerRadius = newTriggerRadius;
+            soundSettings = newSoundSettings;
+            calibrationData = newCalibrationData;
+            mouthControlEnabled = newMouthEnabled;
+            mouthTriggerMode = newMouthTrigger;
+
+            speedSlider.value = smoothingFactor;
+            radiusSlider.value = defaultTriggerRadius;
+            radiusValDisplay.innerText = defaultTriggerRadius;
+            
+            instrumentSelect.value = soundSettings.instrument;
+            volSlider.value = soundSettings.volume * 100;
+            volValDisplay.innerText = `${Math.round(soundSettings.volume * 100)}%`;
+            durSlider.value = soundSettings.duration;
+            durValDisplay.innerText = `${soundSettings.duration}s`;
+            returnCenterToggle.checked = soundSettings.returnToCenter;
+            
+            mouthEnableCheck.checked = mouthControlEnabled;
+            mouthTriggerModeSelect.value = mouthTriggerMode;
+
+            saveConfig();
+            updateModeDisplay();
+            
+            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
+            for (let id in calibrationData) {
+                const btn = document.getElementById(`btn-${id}`);
+                if(btn) btn.classList.add('recorded');
+            }
+
+            showFeedback("✅ CSV 匯入成功！");
+        }
+
+        function exportCSV() {
+            const data = {
+                Profile: currentProfileIndex,
+                Center_Yaw: centerOffset.yaw.toFixed(4),
+                Center_Pitch: centerOffset.pitch.toFixed(4),
+                Smoothing: smoothingFactor,
+                Trigger_Radius_Global: defaultTriggerRadius,
+                Sound_Instrument: soundSettings.instrument,
+                Sound_Volume: soundSettings.volume,
+                Sound_Duration: soundSettings.duration,
+                Sound_ReturnToCenter: soundSettings.returnToCenter,
+                Mouth_Control_Enabled: mouthControlEnabled,
+                Mouth_Trigger_Mode: mouthTriggerMode
+            };
+            let csvContent = "\uFEFFParameter,Value\n"; 
+            for (const [key, value] of Object.entries(data)) {
+                csvContent += `${key},${value}\n`;
+            }
+            csvContent += "\nID,Yaw,Pitch,Radius,SemitoneShift,BaseMidi,Name\n";
+            for (let i = 1; i <= 9; i++) {
+                if (calibrationData[i]) {
+                    const d = calibrationData[i];
+                    const oct = d.semitoneShift || 0;
+                    const base = d.baseMidi !== undefined ? d.baseMidi : (DEFAULT_BASE_MIDI[i] || "");
+                    csvContent += `${i},${d.yaw.toFixed(4)},${d.pitch.toFixed(4)},${d.radius || defaultTriggerRadius},${oct},${base},${d.name}\n`;
+                } else {
+                    csvContent += `${i},,,,,,,\n`;
+                }
+            }
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const date = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `head_tracker_profile_${currentProfileIndex}_${date}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showFeedback("✅ CSV 匯出成功！");
+        }
+
+        function setEditMode(enable) {
+            isEditMode = enable;
+            if (enable) {
+                modeEditBtn.classList.add('active');
+                modeEditBtn.style.background = '#3b82f6';
+                modeEditBtn.style.color = '#fff';
+                modeRecBtn.classList.remove('active-rec');
+                modeRecBtn.style.background = '#1f2937';
+                modeRecBtn.style.color = '#9ca3af';
+                recControls.classList.add('hidden');
+                gridHint.innerText = "點擊下方按鈕「選取」並設定參數：";
+            } else {
+                modeRecBtn.classList.add('active-rec');
+                modeRecBtn.style.background = '#ef4444';
+                modeRecBtn.style.color = '#fff';
+                modeEditBtn.classList.remove('active');
+                modeEditBtn.style.background = '#1f2937';
+                modeEditBtn.style.color = '#9ca3af';
+                recControls.classList.remove('hidden');
+                gridHint.innerText = "點擊下方按鈕「錄製」位置：";
+                selectedPointId = null;
+                pointSettingsPanel.classList.add('hidden');
+                document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
+            }
+        }
+
+        function handleGridClick(id, name) {
+            if (isEditMode) {
+                selectPoint(id);
+            } else {
+                recordPose(id, name);
+            }
+        }
+
+        function selectPoint(id) {
+            if (!calibrationData[id]) {
+                showFeedback("請先錄製該點才能編輯");
+                return;
+            }
+            selectedPointId = id;
+            const data = calibrationData[id];
+            
+            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`btn-${id}`).classList.add('selected');
+            
+            pointSettingsPanel.classList.remove('hidden');
+            selectedPointName.innerText = data.name;
+            
+            const r = data.radius || defaultTriggerRadius;
+            pointRadiusSlider.value = r;
+            pointRadiusVal.innerText = r;
+            
+            const semi = data.semitoneShift || 0;
+            updateSemitoneButtons(semi);
+            
+            const currentBase = data.baseMidi !== undefined ? data.baseMidi : DEFAULT_BASE_MIDI[id];
+            baseNoteSelect.value = currentBase !== null ? currentBase : -1;
+        }
+
+        function updateSemitoneButtons(val) {
+            document.getElementById('semitone-flat-btn').classList.remove('active');
+            document.getElementById('semitone-std-btn').classList.remove('active');
+            document.getElementById('semitone-sharp-btn').classList.remove('active');
+            
+            if (val === -1) document.getElementById('semitone-flat-btn').classList.add('active');
+            else if (val === 1) document.getElementById('semitone-sharp-btn').classList.add('active');
+            else document.getElementById('semitone-std-btn').classList.add('active');
+        }
+
+        function setPointSemitone(val) {
+            if (selectedPointId && calibrationData[selectedPointId]) {
+                calibrationData[selectedPointId].semitoneShift = val;
+                updateSemitoneButtons(val);
+                saveConfig();
+                playNote(0, selectedPointId, true); 
+            }
+        }
+        
+        pointRadiusSlider.addEventListener('input', (e) => {
+            if (selectedPointId && calibrationData[selectedPointId]) {
+                const val = parseInt(e.target.value);
+                calibrationData[selectedPointId].radius = val;
+                pointRadiusVal.innerText = val;
+            }
+        });
+        pointRadiusSlider.addEventListener('change', saveConfig);
+
+        function toggleCalibration() {
+            accompPanel.classList.remove('open'); // 關閉伴奏面板
+            calibPanel.classList.toggle('open');
+        }
+
+        function toggleAccompPanel() {
+            calibPanel.classList.remove('open'); // 關閉校正面板
+            accompPanel.classList.toggle('open');
+        }
+
+        function toggleSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            isSoundEnabled = !isSoundEnabled;
+            if (isSoundEnabled) {
+                soundBtn.innerHTML = "<span>🔊</span> 音效已開啟";
+                soundBtn.classList.add('active');
+                playNote(523.25, null, true); 
+            } else {
+                soundBtn.innerHTML = "<span>🔇</span> 點擊開啟音效 (請檢查靜音鍵)";
+                soundBtn.classList.remove('active');
+            }
+        }
+
+        soundBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault(); toggleSound();
+        });
+
+        function playNote(freq, pointId, forcePlay = false) {
+            if (!isSoundEnabled || !audioCtx || !freq) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            let baseMidi = 0;
+            let finalFreq = freq;
+
+            if (pointId) {
+                const savedMidi = calibrationData[pointId]?.baseMidi;
+                baseMidi = savedMidi !== undefined ? savedMidi : DEFAULT_BASE_MIDI[pointId];
+                
+                if(baseMidi !== null) {
+                    let shifts = 0;
+                    if (isHighOctave) shifts += 12; 
+                    if (calibrationData[pointId]) {
+                        shifts += (calibrationData[pointId].semitoneShift || 0);
+                    }
+                    const finalMidi = baseMidi + shifts;
+                    finalFreq = 440 * Math.pow(2, (finalMidi - 69) / 12);
+                    updateInfoPanel(finalMidi, pointId);
+                } else if (!forcePlay) return; // Rest
+            } else {
+                updateInfoPanel(72, null);
+            }
+            
+            if (finalFreq === 0) return;
+
+            const now = audioCtx.currentTime;
+            const vol = soundSettings.volume;
+            const dur = soundSettings.duration;
+            const inst = soundSettings.instrument;
+
+            const gainNode = audioCtx.createGain();
+            gainNode.connect(audioCtx.destination);
+
+            let osc1, osc2;
+            if (inst === 'piano') {
+                osc1 = audioCtx.createOscillator();
+                osc1.type = 'sine'; osc1.frequency.setValueAtTime(finalFreq, now);
+                osc2 = audioCtx.createOscillator();
+                osc2.type = 'triangle'; osc2.frequency.setValueAtTime(finalFreq, now);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(vol, now + 0.02);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                osc1.connect(gainNode); osc2.connect(gainNode);
+                osc1.start(now); osc1.stop(now + dur);
+                osc2.start(now); osc2.stop(now + dur);
+            } else if (inst === '8bit') {
+                osc1 = audioCtx.createOscillator();
+                osc1.type = 'square'; osc1.frequency.setValueAtTime(finalFreq, now);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(vol * 0.3, now + 0.01);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.1); 
+                osc1.connect(gainNode);
+                osc1.start(now); osc1.stop(now + 0.1);
+            } else if (inst === 'flute') {
+                osc1 = audioCtx.createOscillator();
+                osc1.type = 'sine'; osc1.frequency.setValueAtTime(finalFreq, now);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(vol * 0.8, now + 0.1); 
+                gainNode.gain.linearRampToValueAtTime(0.001, now + dur);
+                osc1.connect(gainNode);
+                osc1.start(now); osc1.stop(now + dur);
+            }
+        }
+
+        function toggleOctave() {
+            isHighOctave = !isHighOctave;
+            if (isHighOctave) {
+                octaveIndicator.innerText = "🎹 音高: 高八度 (+8va)";
+                octaveIndicator.classList.add("active");
+            } else {
+                octaveIndicator.innerText = "🎹 音高: 標準";
+                octaveIndicator.classList.remove("active");
+            }
+        }
+
+        function updateInfoPanel(midi, pointId) {
+            const noteIndex = midi % 12;
+            const octave = Math.floor(midi / 12) - 1;
+            const noteName = NOTE_STRS[noteIndex] + octave;
+            const freq = 440 * Math.pow(2, (midi - 69) / 12);
+            
+            currentNoteNameDisplay.innerText = noteName;
+            currentFreqDisplay.innerText = `${freq.toFixed(1)} Hz`;
+            if (pointId) currentSolfegeDisplay.innerText = SOLFEGE_MAP[pointId] || "";
+            else currentSolfegeDisplay.innerText = "測試音";
+            
+            noteInfoPanel.style.borderColor = '#e879f9';
+            setTimeout(() => { noteInfoPanel.style.borderColor = '#a855f7'; }, 100);
+        }
+
+        function toggleDebug() { isDebugVisible = showDebugCheck.checked; }
+        function toggleZones() { isZonesVisible = showZonesCheck.checked; }
+        
+        // 新增：切換導引框顯示
+        function toggleGuide() {
+            if (showGuideCheck.checked) {
+                faceGuide.classList.add('active');
+            } else {
+                faceGuide.classList.remove('active');
+            }
+        }
+
+        function setCenter() {
+            if (rawYaw !== 0 || rawPitch !== 0) {
+                centerOffset.yaw = rawYaw;
+                centerOffset.pitch = rawPitch;
+                showFeedback("✅ 已設定為中心！");
+                saveConfig(); 
+            }
+        }
+
+        function toggleRangeDetection() {
+            isRangeDetecting = !isRangeDetecting;
+            if (isRangeDetecting) {
+                rangeBtn.innerHTML = "<span>⏹</span> 完成並自動校正中心";
+                rangeBtn.classList.replace('bg-purple-900/50', 'bg-red-600');
+                rangeBtn.classList.replace('border-purple-800', 'border-red-600');
+                rangeHint.classList.remove('hidden');
+                rangeTrace = [];
+                const currentY = normalizeYaw(smoothYaw);
+                const currentP = normalizePitch(smoothPitch);
+                rangeMinYaw = currentY; rangeMaxYaw = currentY;
+                rangeMinPitch = currentP; rangeMaxPitch = currentP;
+            } else {
+                rangeBtn.innerHTML = "<span>🌀</span> 開始圓形範圍偵測 (推薦)";
+                rangeBtn.classList.replace('bg-red-600', 'bg-purple-900/50');
+                rangeBtn.classList.replace('border-red-600', 'border-purple-800');
+                rangeHint.classList.add('hidden');
+                generatePointsFromRange();
+                showZonesCheck.checked = true;
+                isZonesVisible = true;
+            }
+        }
+
+        function generatePointsFromRange() {
+            if (rangeMinYaw === Infinity) return; 
+            const driftYaw = (rangeMinYaw + rangeMaxYaw) / 2;
+            const driftPitch = (rangeMinPitch + rangeMaxPitch) / 2;
+            centerOffset.yaw += driftYaw;
+            centerOffset.pitch += driftPitch;
+            const spanYaw = (rangeMaxYaw - rangeMinYaw) / 2; 
+            const spanPitch = (rangeMaxPitch - rangeMinPitch) / 2;
+            const y_left = spanYaw; const y_right = -spanYaw; const y_mid = 0;
+            const p_top = -spanPitch; const p_btm = spanPitch; const p_mid = 0;
+            const grid = [
+                {id: 1, y: y_left, p: p_top, n: 'Do (1)'}, {id: 2, y: y_mid, p: p_top, n: 'Re (2)'}, {id: 3, y: y_right, p: p_top, n: 'Mi (3)'},
+                {id: 4, y: y_left, p: p_mid, n: 'Fa (4)'}, {id: 5, y: y_mid, p: p_mid, n: '無 (5)'}, {id: 6, y: y_right, p: p_mid, n: 'So (6)'},
+                {id: 7, y: y_left, p: p_btm, n: 'La (7)'}, {id: 8, y: y_mid, p: p_btm, n: 'Si (8)'}, {id: 9, y: y_right, p: p_btm, n: 'High Do'}
+            ];
+            calibrationData = {};
+            grid.forEach(pt => {
+                calibrationData[pt.id] = { yaw: pt.y, pitch: pt.p, name: pt.n, radius: defaultTriggerRadius };
+                const btn = document.getElementById(`btn-${pt.id}`);
+                if(btn) btn.classList.add('recorded');
+            });
+            updateModeDisplay();
+            saveConfig(); 
+            showFeedback("✅ 已自動校正中心與範圍！");
+        }
+
+        function recordPose(id, name) {
+            const existing = calibrationData[id] || {};
+            calibrationData[id] = { 
+                yaw: normalizeYaw(smoothYaw), 
+                pitch: normalizePitch(smoothPitch), 
+                name: name, 
+                radius: existing.radius || defaultTriggerRadius,
+                semitoneShift: existing.semitoneShift || 0 
+            };
+            const btn = document.getElementById(`btn-${id}`);
+            if(btn) {
+                btn.classList.add('recorded');
+                btn.style.background = '#00ffcc'; btn.style.color = '#000';
+                setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 200);
+            }
+            updateModeDisplay();
+            saveConfig(); 
+        }
+
+        function resetCalibration() {
+            calibrationData = {}; lastDetectedId = null;
+            document.querySelectorAll('.calib-btn').forEach(btn => { btn.classList.remove('recorded'); btn.classList.remove('active'); });
+            updateModeDisplay();
+            isRangeDetecting = false;
+            const key = STORAGE_KEY_PREFIX + currentProfileIndex;
+            localStorage.removeItem(key);
+            showFeedback(`已重置設定檔 ${currentProfileIndex}`);
+        }
+
+        function showFeedback(msg) {
+            const oldColor = statusText.style.color;
+            const oldText = statusText.innerText;
+            statusText.innerText = msg;
+            statusText.style.color = "#00ff00";
+            setTimeout(() => { 
+                if(statusText.innerText === msg) {
+                    statusText.innerText = oldText; 
+                    statusText.style.color = oldColor; 
+                }
+            }, 2000);
+        }
+
+        function updateModeDisplay() {
+            if(!modeIndicator) return;
+            const count = Object.keys(calibrationData).length;
+            if (count > 0) { modeIndicator.innerText = `模式: 自定義 (${count}/9 點)`; modeIndicator.style.color = '#3b82f6'; } 
+            else { modeIndicator.innerText = "模式: 預設通用"; modeIndicator.style.color = '#fbbf24'; }
+        }
+
+        function updateFPS() {
+            const now = performance.now(); frameCount++;
+            if (now - lastTime >= 1000) { valFps.innerText = frameCount; frameCount = 0; lastTime = now; }
+            requestAnimationFrame(updateFPS);
+        }
+        updateFPS();
+
+        function mapToCanvas(val, isYaw, width, height) {
+            const scale = 1.0; 
+            return isYaw ? (val * scale + 0.5) * width : (val * scale + 0.5) * height;
+        }
+        
+        function normalizeYaw(raw) { return raw - centerOffset.yaw; }
+        function normalizePitch(raw) { return raw - centerOffset.pitch; }
+
+        function onResults(results) {
+            loader.classList.add('hidden');
+            const width = videoElement.videoWidth; const height = videoElement.videoHeight;
+            canvasElement.width = width; canvasElement.height = height;
+            canvasCtx.save(); canvasCtx.clearRect(0, 0, width, height);
+            
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C020', lineWidth: 1});
+                
+                const nose = landmarks[1], leftEye = landmarks[33], rightEye = landmarks[263], chin = landmarks[152], topHead = landmarks[10];
+                const upperLip = landmarks[13], lowerLip = landmarks[14];
+
+                const midEyesX = (leftEye.x + rightEye.x) / 2;
+                const faceWidth = Math.abs(rightEye.x - leftEye.x); 
+                rawYaw = (nose.x - midEyesX) / faceWidth; 
+                
+                const midEyesY = (leftEye.y + rightEye.y) / 2;
+                const faceHeight = Math.abs(chin.y - topHead.y);
+                rawPitch = (nose.y - midEyesY) / faceHeight;
+
+                smoothYaw = smoothYaw * (1 - smoothingFactor) + rawYaw * smoothingFactor;
+                smoothPitch = smoothPitch * (1 - smoothingFactor) + rawPitch * smoothingFactor;
+
+                const dispYaw = normalizeYaw(smoothYaw);
+                const dispPitch = normalizePitch(smoothPitch);
+
+                valYaw.innerText = dispYaw.toFixed(2); 
+                valPitch.innerText = dispPitch.toFixed(2);
+
+                const mouthOpenDist = Math.abs(lowerLip.y - upperLip.y);
+                const mouthRatio = mouthOpenDist / faceHeight;
+                const isCurrentlyOpen = mouthRatio > MOUTH_OPEN_THRESHOLD;
+
+                // Mouth Control Logic
+                if (mouthControlEnabled) {
+                    if (mouthTriggerMode === 'open') {
+                        if (isCurrentlyOpen && !wasMouthOpen) {
+                           toggleOctave();
+                        }
+                    } else if (mouthTriggerMode === 'close') {
+                        if (!isCurrentlyOpen && wasMouthOpen) {
+                           toggleOctave();
+                        }
+                    }
+                }
+                wasMouthOpen = isCurrentlyOpen;
+
+                if (isDebugVisible) {
+                    const ulX = upperLip.x * width;
+                    const ulY = upperLip.y * height;
+                    const llX = lowerLip.x * width;
+                    const llY = lowerLip.y * height;
+                    canvasCtx.beginPath();
+                    canvasCtx.moveTo(ulX, ulY);
+                    canvasCtx.lineTo(llX, llY);
+                    canvasCtx.lineWidth = 3;
+                    canvasCtx.strokeStyle = isCurrentlyOpen ? "#00ffcc" : "#ff0055"; 
+                    canvasCtx.stroke();
+                }
+
+                if (isRangeDetecting) {
+                    if (dispYaw < rangeMinYaw) rangeMinYaw = dispYaw;
+                    if (dispYaw > rangeMaxYaw) rangeMaxYaw = dispYaw;
+                    if (dispPitch < rangeMinPitch) rangeMinPitch = dispPitch;
+                    if (dispPitch > rangeMaxPitch) rangeMaxPitch = dispPitch;
+                    rangeTrace.push({x: dispYaw, y: dispPitch});
+                    canvasCtx.fillStyle = "#00ff00";
+                    for(let pt of rangeTrace) {
+                         const tx = mapToCanvas(pt.x, true, width, height);
+                         const ty = mapToCanvas(pt.y, false, width, height);
+                         canvasCtx.fillRect(tx, ty, 2, 2);
+                    }
+                    const x1 = mapToCanvas(rangeMinYaw, true, width, height);
+                    const x2 = mapToCanvas(rangeMaxYaw, true, width, height);
+                    const y1 = mapToCanvas(rangeMinPitch, false, width, height);
+                    const y2 = mapToCanvas(rangeMaxPitch, false, width, height);
+                    const bx = Math.min(x1, x2);
+                    const by = Math.min(y1, y2);
+                    const bw = Math.abs(x1 - x2);
+                    const bh = Math.abs(y1 - y2);
+                    canvasCtx.strokeStyle = "#00ff00";
+                    canvasCtx.lineWidth = 2;
+                    canvasCtx.strokeRect(bx, by, bw, bh);
+                }
+
+                let detectedId = null; let detectedName = "";
+                const curX = mapToCanvas(dispYaw, true, width, height); 
+                const curY = mapToCanvas(dispPitch, false, width, height);
+
+                let minDistance = Infinity;
+                if (Object.keys(calibrationData).length > 0) {
+                    for (const [id, data] of Object.entries(calibrationData)) {
+                        const targetX = mapToCanvas(data.yaw, true, width, height);
+                        const targetY = mapToCanvas(data.pitch, false, width, height);
+                        const dist = Math.sqrt(Math.pow(curX - targetX, 2) + Math.pow(curY - targetY, 2));
+                        const r = data.radius || defaultTriggerRadius;
+                        if (dist < r) {
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                detectedId = parseInt(id);
+                                detectedName = data.name;
+                            }
+                        }
+                    }
+                }
+
+                if (isZonesVisible && !isRangeDetecting && Object.keys(calibrationData).length > 0) {
+                    for (const [id, data] of Object.entries(calibrationData)) {
+                        const cx = mapToCanvas(data.yaw, true, width, height);
+                        const cy = mapToCanvas(data.pitch, false, width, height);
+                        const pid = parseInt(id);
+                        const isActive = (pid === detectedId);
+                        const r = data.radius || defaultTriggerRadius;
+                        
+                        const shift = data.semitoneShift || 0;
+                        
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        if (pid === 5) {
+                            canvasCtx.fillStyle = isActive ? "rgba(0, 255, 204, 0.4)" : "rgba(0, 255, 204, 0.15)";
+                            canvasCtx.strokeStyle = "#00ffcc";
+                        } else {
+                            if (shift === 1) canvasCtx.strokeStyle = "#fbbf24"; 
+                            else if (shift === -1) canvasCtx.strokeStyle = "#3b82f6";
+                            else canvasCtx.strokeStyle = "#d946ef";
+                            
+                            canvasCtx.fillStyle = isActive ? "rgba(217, 70, 239, 0.4)" : "rgba(217, 70, 239, 0.1)"; 
+                        }
+                        canvasCtx.fill();
+                        canvasCtx.lineWidth = (id == selectedPointId && isEditMode) ? 4 : 2; 
+                        canvasCtx.stroke();
+                        
+                        canvasCtx.fillStyle = "#fff";
+                        canvasCtx.font = "bold 12px Arial";
+                        canvasCtx.textAlign = "center";
+                        canvasCtx.textBaseline = "middle";
+                        
+                        let label = pid.toString();
+                        if(shift > 0) label += "♯";
+                        if(shift < 0) label += "♭";
+                        
+                        canvasCtx.save();
+                        canvasCtx.translate(cx, cy);
+                        canvasCtx.scale(-1, 1);
+                        canvasCtx.fillText(label, 0, 0);
+                        canvasCtx.restore();
+                    }
+                }
+
+                if (isDebugVisible) {
+                    canvasCtx.beginPath(); canvasCtx.arc(curX, curY, 8, 0, 2 * Math.PI); 
+                    canvasCtx.fillStyle = "#ff0055"; canvasCtx.fill();
+                }
+
+                if (detectedId !== null) {
+                    if (detectedId === 5) {
+                        isArmed = true;
+                        triggerStateText.innerText = "就緒 (已回中)";
+                        triggerStateText.style.color = "#00ffcc";
+                        lastDetectedId = 5;
+                    } else if (detectedId !== lastDetectedId) {
+                        if (isArmed || !soundSettings.returnToCenter) {
+                            playNote(NOTE_FREQS[detectedId], detectedId);
+                            if (soundSettings.returnToCenter) {
+                                isArmed = false;
+                                triggerStateText.innerText = "已觸發 (請回中間)";
+                                triggerStateText.style.color = "#fbbf24";
+                            }
+                        }
+                        lastDetectedId = detectedId;
+                    }
+                }
+
+                statusText.innerText = detectedId ? `${detectedId}. ${detectedName}` : "移動中...";
+                if (detectedId === 5) statusText.style.color = "#00ffcc";
+                else if (detectedId) statusText.style.color = "#d946ef";
+                else statusText.style.color = "#888";
+
+            } else {
+                statusText.innerText = "未偵測到臉部"; statusText.style.color = "#888";
+            }
+            canvasCtx.restore();
+        }
+
+        // [離線版說明]
+        // 請將下方的 locateFile 函式修改為 return file; 以支援離線使用
+        const faceMesh = new FaceMesh({locateFile: (file) => {
+            // 線上預覽 (請註解下方行，取消註解此行)
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+            // 離線版 (請取消註解此行)
+            // return file;
+        }});
+
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        faceMesh.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => { await faceMesh.send({image: videoElement}); },
+            width: 640, height: 480
+        });
+        camera.start().catch(err => { console.error(err); loader.innerHTML = `<div style="color:red">Error: ${err.message}</div>`; });
+
+        // Auto load on start
+        setTimeout(loadConfig, 1000);
+
+    </script>
+</body>
+</html>

@@ -328,140 +328,155 @@
     </div>
 
     <script>
-        // 安全檢查：確保 JS 庫載入
-        window.onerror = function(message, source, lineno, colno, error) {
-            console.error("Error:", message);
-            if (message.includes("FaceMesh") || message.includes("Camera")) {
-                const loader = document.getElementById('loader');
-                if(loader) loader.innerHTML = `<div style="color:red; text-align:center;">程式庫載入失敗<br>請確認 JS 檔案是否存在</div>`;
-            }
-        };
+        // ============================================================
+        // Phase 2 Modular Integration Layer
+        // 使用模組化架構：CalibrationSystem + FaceTracker + UIController
+        // ============================================================
 
-        const videoElement = document.getElementById('input_video');
-        const canvasElement = document.getElementById('output_canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const statusText = document.getElementById('status-text');
-        const loader = document.getElementById('loader');
+        // 全域狀態變數
+        let audioCtx = null;
+        let isSoundEnabled = false;
+        let isDebugVisible = true;
+        let isZonesVisible = true;
         
-        // Panels
-        const calibPanel = document.getElementById('calib-panel');
-        const accompPanel = document.getElementById('accomp-panel'); 
+        // 模組實例
+        let calibrationSystem = null;
+        let faceTracker = null;
+        let uiController = null;
+        let accompaniment = null;
         
-        const modeIndicator = document.getElementById('mode-indicator');
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
         const soundBtn = document.getElementById('sound-toggle');
         const showDebugCheck = document.getElementById('show-debug');
         const showZonesCheck = document.getElementById('show-zones');
-        const showGuideCheck = document.getElementById('show-guide'); 
-        const faceGuide = document.getElementById('face-guide'); 
-        const chordDisplay = document.getElementById('chord-display'); 
-        const speedSlider = document.getElementById('speed-slider');
-        const radiusSlider = document.getElementById('radius-slider');
-        const radiusValDisplay = document.getElementById('radius-val');
-        const rangeBtn = document.getElementById('range-btn');
-        const rangeHint = document.getElementById('range-hint');
-        const triggerStateText = document.getElementById('trigger-state');
-        const octaveIndicator = document.getElementById('octave-indicator');
-        const startScreen = document.getElementById('start-screen');
-        const startBtn = document.getElementById('start-btn');
-        const csvInput = document.getElementById('csv-input');
+        const showGuideCheck = document.getElementById('show-guide');
+        const faceGuide = document.getElementById('face-guide');
+
+        // ============================================================
+        // 初始化系統
+        // ============================================================
         
-        // New UI for Note Info
-        const currentNoteNameDisplay = document.getElementById('current-note-name');
-        const currentSolfegeDisplay = document.getElementById('current-solfege');
-        const currentFreqDisplay = document.getElementById('current-freq');
-        const noteInfoPanel = document.getElementById('note-info');
-
-        // Edit Mode UI
-        const pointSettingsPanel = document.getElementById('point-settings-panel');
-        const selectedPointName = document.getElementById('selected-point-name');
-        const pointRadiusSlider = document.getElementById('point-radius-slider');
-        const pointRadiusVal = document.getElementById('point-radius-val');
-        const gridHint = document.getElementById('grid-hint');
-        const recControls = document.getElementById('rec-controls');
-        const modeRecBtn = document.getElementById('mode-rec-btn');
-        const modeEditBtn = document.getElementById('mode-edit-btn');
-        const baseNoteSelect = document.getElementById('base-note-select');
-
-        // Sound Setting UI Elements
-        const returnCenterToggle = document.getElementById('return-center-toggle');
-        const instrumentSelect = document.getElementById('instrument-select');
-        const volSlider = document.getElementById('vol-slider');
-        const volValDisplay = document.getElementById('vol-val');
-        const durSlider = document.getElementById('dur-slider');
-        const durValDisplay = document.getElementById('dur-val');
-
-        // Auto Chords UI Elements
-        const chordProgSelect = document.getElementById('chord-prog-select');
-        const sectionSelectContainer = document.getElementById('section-select-container');
-        const sectionSelect = document.getElementById('section-select');
-        const chordPlayBtn = document.getElementById('chord-play-btn');
-        const bpmSlider = document.getElementById('bpm-slider');
-        const bpmVal = document.getElementById('bpm-val');
-        const chordVolSlider = document.getElementById('chord-vol-slider');
-        const chordVolVal = document.getElementById('chord-vol-val');
-        const chordInstrumentSelect = document.getElementById('chord-instrument-select');
-        const metronomeCheck = document.getElementById('metronome-check');
-        const metronomeLight = document.getElementById('metronome-light');
-
-        // Mouth Control UI Elements
-        const mouthEnableCheck = document.getElementById('mouth-enable-check');
-        const mouthTriggerModeSelect = document.getElementById('mouth-trigger-mode');
-
-        const valYaw = document.getElementById('val-yaw');
-        const valPitch = document.getElementById('val-pitch');
-        const valFps = document.getElementById('val-fps');
-        
-        let lastTime = 0;
-        let frameCount = 0;
-        
-        let rawYaw = 0, rawPitch = 0;
-        let smoothYaw = 0, smoothPitch = 0;
-        let centerOffset = { yaw: 0, pitch: 0.45 };
-        
-        let smoothingFactor = 0.15; 
-        speedSlider.addEventListener('input', (e) => { smoothingFactor = parseFloat(e.target.value); });
-
-        let defaultTriggerRadius = 40;
-        radiusSlider.addEventListener('input', (e) => { 
-            defaultTriggerRadius = parseInt(e.target.value); 
-            radiusValDisplay.innerText = defaultTriggerRadius;
-            for(let id in calibrationData) {
-                calibrationData[id].radius = defaultTriggerRadius;
+        // Start Screen Handler
+        startBtn.addEventListener('click', async () => {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            isSoundEnabled = true;
+            soundBtn.innerHTML = "<span>🔊</span> 音效已開啟";
+            soundBtn.classList.add('active');
+            startScreen.style.opacity = '0';
+            setTimeout(() => { startScreen.style.display = 'none'; }, 500);
+            playNote(523.25, null, true);
+            
+            if (showGuideCheck.checked) {
+                faceGuide.classList.add('active');
+                setTimeout(() => {
+                    if (faceGuide.classList.contains('active')) {
+                        faceGuide.classList.remove('active');
+                        showGuideCheck.checked = false;
+                    }
+                }, 15000);
             }
         });
 
-        let soundSettings = {
-            returnToCenter: false, 
-            instrument: 'piano',
-            volume: 0.5,
-            duration: 1.5
-        };
+        // Touch/Click for AudioContext resume
+        document.body.addEventListener('touchstart', function() {
+            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
+        }, { once: true, passive: true });
+        
+        document.body.addEventListener('click', function() {
+            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
+        }, { once: true });
 
-        returnCenterToggle.addEventListener('change', (e) => { soundSettings.returnToCenter = e.target.checked; });
-        instrumentSelect.addEventListener('change', (e) => { 
-            soundSettings.instrument = e.target.value; 
-            playNote(523.25, null, true); 
+        // ============================================================
+        // 初始化模組
+        // ============================================================
+        
+        // Initialize CalibrationSystem
+        calibrationSystem = new CalibrationSystem({
+            showFeedback: (msg) => uiController.showFeedback(msg),
+            updateModeDisplay: (count) => uiController.updateModeDisplay(count),
+            normalizeYaw: (raw) => raw - calibrationSystem.getCenterOffset().yaw,
+            normalizePitch: (raw) => raw - calibrationSystem.getCenterOffset().pitch,
+            onZonesToggle: (visible) => { isZonesVisible = visible; },
+            onInstrumentChange: (inst) => { playNote(523.25, null, true); },
+            onVolumeChange: (vol) => { playNote(523.25, null, true); },
+            onPreviewNote: (pointId) => { playNote(0, pointId, true); },
+            getSelectedPointId: () => uiController ? uiController.getSelectedPointId() : null
         });
-        volSlider.addEventListener('input', (e) => { 
-            soundSettings.volume = parseInt(e.target.value) / 100; 
-            volValDisplay.innerText = `${e.target.value}%`;
+        
+        // Initialize UIController
+        uiController = new UIController({
+            onSoundToggle: toggleSound,
+            onDebugToggle: (visible) => { isDebugVisible = visible; },
+            onZonesToggle: (visible) => { isZonesVisible = visible; },
+            onEditModeChange: (enable) => { /* handled by UIController itself */ },
+            onRecordPose: (id, name) => calibrationSystem.recordPose(id, name, faceTracker.getSmoothYaw(), faceTracker.getSmoothPitch()),
+            onPointSelect: (id) => { /* handled by UIController */ },
+            onSetPointSemitone: (pointId, val) => {
+                if (pointId && calibrationSystem.calibrationData[pointId]) {
+                    calibrationSystem.calibrationData[pointId].semitoneShift = val;
+                    calibrationSystem.saveConfig();
+                    playNote(0, pointId, true);
+                }
+            },
+            onProfileSwitch: (index) => calibrationSystem.switchProfile(index),
+            onDragPoint: (pointId, newYaw, newPitch) => {
+                calibrationSystem.calibrationData[pointId].yaw = newYaw;
+                calibrationSystem.calibrationData[pointId].pitch = newPitch;
+            },
+            onWheelResize: (pointId, delta) => {
+                const pointRadiusSlider = document.getElementById('point-radius-slider');
+                const pointRadiusVal = document.getElementById('point-radius-val');
+                let newR = (calibrationSystem.calibrationData[pointId].radius || 40) + delta;
+                newR = Math.max(10, Math.min(200, newR));
+                calibrationSystem.calibrationData[pointId].radius = newR;
+                if (uiController.getSelectedPointId() == pointId) {
+                    pointRadiusSlider.value = newR;
+                    pointRadiusVal.innerText = newR;
+                }
+            },
+            onToggleOctave: () => { uiController.toggleOctave(); },
+            getCalibrationData: () => calibrationSystem.getCalibrationData(),
+            defaultTriggerRadius: 40,
+            DEFAULT_BASE_MIDI: calibrationSystem.DEFAULT_BASE_MIDI,
+            mapToCanvas: (val, isYaw, width, height) => {
+                const scale = 1.0;
+                return isYaw ? (val * scale + 0.5) * width : (val * scale + 0.5) * height;
+            }
         });
-        volSlider.addEventListener('change', () => playNote(523.25, null, true));
-        durSlider.addEventListener('input', (e) => { 
-            soundSettings.duration = parseFloat(e.target.value); 
-            durValDisplay.innerText = `${e.target.value}s`;
+        
+        // Initialize FaceTracker
+        faceTracker = new FaceTracker({
+            getSmoothingFactor: () => calibrationSystem.getSmoothingFactor(),
+            getMouthControlEnabled: () => calibrationSystem.getMouthControlEnabled(),
+            getMouthTriggerMode: () => calibrationSystem.getMouthTriggerMode(),
+            onToggleOctave: () => uiController.toggleOctave(),
+            getIsDebugVisible: () => isDebugVisible,
+            getIsRangeDetecting: () => calibrationSystem.getIsRangeDetecting(),
+            onRangeUpdate: (dispYaw, dispPitch) => calibrationSystem.updateRange(dispYaw, dispPitch),
+            getRangeTrace: () => calibrationSystem.getRangeTrace(),
+            getRangeBounds: () => calibrationSystem.getRangeBounds(),
+            getCalibrationData: () => calibrationSystem.getCalibrationData(),
+            getIsZonesVisible: () => isZonesVisible,
+            getSelectedPointId: () => uiController.getSelectedPointId(),
+            getIsEditMode: () => uiController.getIsEditMode(),
+            onPlayNote: (freq, pointId) => playNote(freq, pointId, false),
+            getSoundSettings: () => calibrationSystem.getSoundSettings(),
+            getCenterOffset: () => calibrationSystem.getCenterOffset()
         });
-
-        // --- Auto Chords Logic (使用模組化的 AccompanimentSystem) ---
-        const accompaniment = new AccompanimentSystem({
+        
+        // Initialize Accompaniment System
+        accompaniment = new AccompanimentSystem({
             bpm: 100,
             volume: 0.3,
             instrument: 'soft_pad',
             metronomeEnabled: false,
             isArpeggio: false,
 
-            // 小節變更回調 - 更新 UI 顯示
             onBarChange: (data) => {
+                const chordDisplay = document.getElementById('chord-display');
                 let melodyHint = '';
                 if (data.hint) {
                     melodyHint = `<div style="font-size: 1.8rem; color: #00ffcc; margin-top: 8px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.8); font-family: 'Share Tech Mono', monospace;">${data.hint}</div>`;
@@ -474,13 +489,13 @@
                 `;
             },
 
-            // 節拍器回調 - 閃爍燈號
             onMetronomeBeat: (data) => {
                 flashMetronomeLight(data.isAccent);
             },
 
-            // 狀態變更回調 - 更新按鈕
             onStateChange: (data) => {
+                const chordPlayBtn = document.getElementById('chord-play-btn');
+                const chordDisplay = document.getElementById('chord-display');
                 if (data.state === 'playing') {
                     chordPlayBtn.innerText = "⏹ 停止伴奏";
                     chordPlayBtn.classList.replace("bg-green-800/60", "bg-red-800/60");
@@ -496,11 +511,16 @@
             }
         });
 
-        // UI 事件綁定
+        // Accompaniment UI Bindings
+        const chordInstrumentSelect = document.getElementById('chord-instrument-select');
         chordInstrumentSelect.addEventListener('change', (e) => {
             accompaniment.setInstrument(e.target.value);
         });
 
+        const chordProgSelect = document.getElementById('chord-prog-select');
+        const sectionSelectContainer = document.getElementById('section-select-container');
+        const sectionSelect = document.getElementById('section-select');
+        
         chordProgSelect.addEventListener('change', (e) => {
             const key = e.target.value;
             const sections = accompaniment.selectProgression(key);
@@ -523,45 +543,34 @@
             accompaniment.selectSection(parseInt(e.target.value) || 0);
         });
 
+        const bpmSlider = document.getElementById('bpm-slider');
+        const bpmVal = document.getElementById('bpm-val');
         bpmSlider.addEventListener('input', (e) => {
             const value = parseInt(e.target.value);
             bpmVal.innerText = value;
             accompaniment.setBpm(value);
         });
 
+        const chordVolSlider = document.getElementById('chord-vol-slider');
+        const chordVolVal = document.getElementById('chord-vol-val');
         chordVolSlider.addEventListener('input', (e) => {
             const value = parseInt(e.target.value) / 100;
             chordVolVal.innerText = `${e.target.value}%`;
             accompaniment.setVolume(value);
         });
 
-        document.getElementById('arpeggio-check').addEventListener('change', (e) => {
+        const arpeggioCheck = document.getElementById('arpeggio-check');
+        arpeggioCheck.addEventListener('change', (e) => {
             accompaniment.setArpeggio(e.target.checked);
         });
 
+        const metronomeCheck = document.getElementById('metronome-check');
         metronomeCheck.addEventListener('change', (e) => {
             accompaniment.setMetronome(e.target.checked);
         });
 
-        function toggleAutoChords() {
-            const key = chordProgSelect.value;
-            if (key === 'none' && !accompaniment.isPlaying) {
-                showFeedback("⚠️ 請先選擇曲風");
-                return;
-            }
-
-            // 確保 audioCtx 已初始化並傳給模組
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            accompaniment.setAudioContext(audioCtx);
-
-            accompaniment.toggle(key);
-        }
-
-        // 節拍器燈號閃爍（保留原有視覺效果）
         function flashMetronomeLight(isAccent) {
+            const metronomeLight = document.getElementById('metronome-light');
             metronomeLight.classList.add('active');
             if (isAccent) {
                 metronomeLight.style.background = '#00ffcc';
@@ -577,587 +586,10 @@
             }, 100);
         }
 
-        // 為了向後相容，保留這些變數的存取
-        function getAccompanimentState() {
-            return accompaniment.getState();
-        }
-
-        // Mouth Control Settings
-        let mouthControlEnabled = true;
-        let mouthTriggerMode = 'close'; 
-
-        mouthEnableCheck.addEventListener('change', (e) => { mouthControlEnabled = e.target.checked; });
-        mouthTriggerModeSelect.addEventListener('change', (e) => { mouthTriggerMode = e.target.value; });
-
-        let lastDetectedId = null; 
-        let isArmed = true; 
-
-        let isDebugVisible = true;
-        let isZonesVisible = true;
-        let calibrationData = {}; 
-        let faceGuideScale = 1.0; 
-
-        let isRangeDetecting = false;
-        let rangeMinYaw = Infinity, rangeMaxYaw = -Infinity;
-        let rangeMinPitch = Infinity, rangeMaxPitch = -Infinity;
-        let rangeTrace = [];
-
-        let isDragging = false;
-        let draggedPointId = null;
-
-        let isEditMode = false;
-        let selectedPointId = null;
-
-        let isHighOctave = false;
-        let wasMouthOpen = false;
-        const MOUTH_OPEN_THRESHOLD = 0.08; 
-
-        let audioCtx = null;
-        let isSoundEnabled = false; 
-
-        let currentProfileIndex = 1;
-        const STORAGE_KEY_PREFIX = 'head_tracker_config_v11_profile_';
-
-        function switchProfile(index) {
-            for (let i = 1; i <= 3; i++) {
-                const btn = document.getElementById(`profile-btn-${i}`);
-                if (i === index) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            }
-            currentProfileIndex = index;
-            loadConfig();
-            showFeedback(`📂 已切換至設定檔 ${index}`);
-        }
-
-        // --- Music Logic Constants ---
-        const DEFAULT_BASE_MIDI = {
-            1: 60, 2: 62, 3: 64, 4: 65, 5: null, 6: 67, 7: 69, 8: 71, 9: 72
-        };
-        const SOLFEGE_MAP = {
-            1: "Do", 2: "Re", 3: "Mi", 4: "Fa", 5: "Rest", 6: "So", 7: "La", 8: "Si", 9: "Do"
-        };
+        // ============================================================
+        // 音頻播放邏輯
+        // ============================================================
         
-        const NOTE_FREQS = {
-            1: 261.63, // C4
-            2: 293.66, // D4
-            3: 329.63, // E4
-            4: 349.23, // F4
-            5: 0,      // Rest
-            6: 392.00, // G4
-            7: 440.00, // A4
-            8: 493.88, // B4
-            9: 523.25  // C5
-        };
-        
-        const NOTE_NAMES = {
-            1: "Do", 2: "Re", 3: "Mi", 4: "Fa", 5: "Center", 6: "So", 7: "La", 8: "Si", 9: "High Do"
-        };
-
-        const NOTE_STRS = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
-
-        // Note Selection Options (C3 to C5)
-        const NOTE_OPTIONS = [];
-        for(let m=48; m<=72; m++) {
-            const noteIndex = m % 12;
-            const octave = Math.floor(m / 12) - 1;
-            const name = NOTE_STRS[noteIndex] + octave;
-            NOTE_OPTIONS.push({ midi: m, name: name });
-        }
-        NOTE_OPTIONS.push({ midi: -1, name: "無聲 (Rest)" });
-
-        // Populate Dropdown
-        NOTE_OPTIONS.forEach(opt => {
-            const el = document.createElement('option');
-            el.value = opt.midi;
-            el.innerText = opt.name;
-            baseNoteSelect.appendChild(el);
-        });
-
-        baseNoteSelect.addEventListener('change', (e) => {
-            if (selectedPointId && calibrationData[selectedPointId]) {
-                const midi = parseInt(e.target.value);
-                calibrationData[selectedPointId].baseMidi = (midi === -1) ? null : midi;
-                saveConfig();
-                playNote(0, selectedPointId, true); // Preview
-            }
-        });
-
-
-        document.body.addEventListener('touchstart', function() {
-            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
-        }, { once: true, passive: true });
-        
-        document.body.addEventListener('click', function() {
-            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
-        }, { once: true });
-
-        startBtn.addEventListener('click', async () => {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
-            isSoundEnabled = true;
-            soundBtn.innerHTML = "<span>🔊</span> 音效已開啟";
-            soundBtn.classList.add('active');
-            startScreen.style.opacity = '0';
-            setTimeout(() => { startScreen.style.display = 'none'; }, 500);
-            playNote(523.25, null, true);
-            
-            if(showGuideCheck.checked) {
-                faceGuide.classList.add('active');
-                setTimeout(() => {
-                    if (faceGuide.classList.contains('active')) {
-                        faceGuide.classList.remove('active');
-                        showGuideCheck.checked = false; 
-                    }
-                }, 15000);
-            }
-        });
-
-        function getLogicalPos(evt, canvas) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
-            const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
-            const visualX = clientX - rect.left;
-            const visualY = clientY - rect.top;
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const logicalX = (rect.width - visualX) * scaleX; 
-            const logicalY = visualY * scaleY;
-            return { x: logicalX, y: logicalY };
-        }
-
-        function handleStart(evt) {
-            if (!isDebugVisible && !isZonesVisible) return;
-            const pos = getLogicalPos(evt, canvasElement);
-            for (const [id, data] of Object.entries(calibrationData)) {
-                 const cx = mapToCanvas(data.yaw, true, canvasElement.width, canvasElement.height);
-                 const cy = mapToCanvas(data.pitch, false, canvasElement.width, canvasElement.height);
-                 const r = data.radius || defaultTriggerRadius;
-                 const dist = Math.sqrt((pos.x - cx)**2 + (pos.y - cy)**2);
-                 if (dist < r) { 
-                     isDragging = true; draggedPointId = id; canvasElement.style.cursor = 'grabbing'; 
-                     if(isEditMode) selectPoint(id);
-                     break;
-                 }
-            }
-        }
-
-        function handleMove(evt) {
-            const pos = getLogicalPos(evt, canvasElement);
-            if (isDragging && draggedPointId) {
-                if (evt.preventDefault) evt.preventDefault();
-                const w = canvasElement.width;
-                const h = canvasElement.height;
-                const newYaw = (pos.x / w - 0.5); 
-                const newPitch = (pos.y / h - 0.5);
-                calibrationData[draggedPointId].yaw = newYaw;
-                calibrationData[draggedPointId].pitch = newPitch;
-            } else if (isDebugVisible || isZonesVisible) {
-                let hovering = false;
-                for (const [id, data] of Object.entries(calibrationData)) {
-                     const cx = mapToCanvas(data.yaw, true, canvasElement.width, canvasElement.height);
-                     const cy = mapToCanvas(data.pitch, false, canvasElement.width, canvasElement.height);
-                     const r = data.radius || defaultTriggerRadius;
-                     const dist = Math.sqrt((pos.x - cx)**2 + (pos.y - cy)**2);
-                     if (dist < r) hovering = true;
-                }
-                canvasElement.style.cursor = hovering ? 'grab' : 'default';
-            }
-        }
-
-        function handleEnd() { isDragging = false; draggedPointId = null; canvasElement.style.cursor = 'default'; }
-
-        function handleWheel(evt) {
-            let handled = false;
-            if (isZonesVisible) {
-                const pos = getLogicalPos(evt, canvasElement);
-                let hoveredId = null;
-                for (const [id, data] of Object.entries(calibrationData)) {
-                     const cx = mapToCanvas(data.yaw, true, canvasElement.width, canvasElement.height);
-                     const cy = mapToCanvas(data.pitch, false, canvasElement.width, canvasElement.height);
-                     const r = data.radius || defaultTriggerRadius;
-                     const dist = Math.sqrt((pos.x - cx)**2 + (pos.y - cy)**2);
-                     if (dist < r) { hoveredId = id; break; }
-                }
-                
-                if (hoveredId) {
-                    evt.preventDefault();
-                    const delta = Math.sign(evt.deltaY) * -5;
-                    let newR = (calibrationData[hoveredId].radius || defaultTriggerRadius) + delta;
-                    newR = Math.max(10, Math.min(200, newR));
-                    calibrationData[hoveredId].radius = newR;
-                    if(selectedPointId == hoveredId) {
-                        pointRadiusSlider.value = newR;
-                        pointRadiusVal.innerText = newR;
-                    }
-                    handled = true; 
-                    return;
-                }
-            }
-
-            if (!handled && faceGuide && faceGuide.classList.contains('active')) {
-                evt.preventDefault();
-                const delta = Math.sign(evt.deltaY) * -0.1; 
-                faceGuideScale += delta;
-                faceGuideScale = Math.max(0.5, Math.min(3.0, faceGuideScale)); 
-                faceGuide.style.transform = `translate(-50%, -50%) scale(${faceGuideScale})`;
-            }
-        }
-
-        canvasElement.addEventListener('mousedown', handleStart);
-        canvasElement.addEventListener('mousemove', handleMove);
-        canvasElement.addEventListener('mouseup', handleEnd);
-        canvasElement.addEventListener('mouseleave', handleEnd);
-        canvasElement.addEventListener('touchstart', handleStart, {passive: false});
-        canvasElement.addEventListener('touchmove', handleMove, {passive: false});
-        canvasElement.addEventListener('touchend', handleEnd);
-        canvasElement.addEventListener('wheel', handleWheel, {passive: false});
-
-        function saveConfig() {
-            const config = { calibrationData, centerOffset, defaultTriggerRadius, smoothingFactor, soundSettings, mouthControlEnabled, mouthTriggerMode };
-            try {
-                const key = STORAGE_KEY_PREFIX + currentProfileIndex;
-                localStorage.setItem(key, JSON.stringify(config));
-                showFeedback(`✅ 設定檔 ${currentProfileIndex} 已儲存！`);
-            } catch (e) { showFeedback("❌ 儲存失敗"); }
-        }
-
-        function loadConfig() {
-            calibrationData = {};
-            centerOffset = { yaw: 0, pitch: 0.45 };
-            defaultTriggerRadius = 40;
-            radiusSlider.value = 40;
-            radiusValDisplay.innerText = 40;
-            
-            const key = STORAGE_KEY_PREFIX + currentProfileIndex;
-            const json = localStorage.getItem(key);
-            if (json) {
-                try {
-                    const config = JSON.parse(json);
-                    if (config.calibrationData) calibrationData = config.calibrationData;
-                    if (config.centerOffset) centerOffset = config.centerOffset;
-                    if (config.defaultTriggerRadius) {
-                        defaultTriggerRadius = config.defaultTriggerRadius;
-                        radiusSlider.value = defaultTriggerRadius;
-                        radiusValDisplay.innerText = defaultTriggerRadius;
-                    }
-                    if (config.smoothingFactor) {
-                        smoothingFactor = config.smoothingFactor;
-                        speedSlider.value = smoothingFactor;
-                    }
-                    if (config.soundSettings) {
-                        soundSettings = config.soundSettings;
-                        if(soundSettings.returnToCenter === undefined) soundSettings.returnToCenter = false;
-                        returnCenterToggle.checked = soundSettings.returnToCenter;
-                        instrumentSelect.value = soundSettings.instrument;
-                        volSlider.value = soundSettings.volume * 100;
-                        volValDisplay.innerText = `${Math.round(soundSettings.volume * 100)}%`;
-                        durSlider.value = soundSettings.duration;
-                        durValDisplay.innerText = `${soundSettings.duration}s`;
-                    }
-                    if (config.mouthControlEnabled !== undefined) {
-                        mouthControlEnabled = config.mouthControlEnabled;
-                        mouthEnableCheck.checked = mouthControlEnabled;
-                    }
-                    if (config.mouthTriggerMode !== undefined) {
-                        mouthTriggerMode = config.mouthTriggerMode;
-                        mouthTriggerModeSelect.value = mouthTriggerMode;
-                    }
-
-                    document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
-                    for (let id in calibrationData) {
-                        const btn = document.getElementById(`btn-${id}`);
-                        if(btn) btn.classList.add('recorded');
-                    }
-                } catch (e) { showFeedback("❌ 讀取失敗"); }
-            } else {
-                document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
-                showFeedback(`ℹ️ 設定檔 ${currentProfileIndex} 為空`);
-            }
-            updateModeDisplay();
-            selectedPointId = null;
-            pointSettingsPanel.classList.add('hidden');
-            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
-        }
-
-        function importCSV() {
-            csvInput.click();
-        }
-
-        function handleFileSelect(evt) {
-            const file = evt.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const text = e.target.result;
-                    parseCSV(text);
-                } catch (error) {
-                    console.error(error);
-                    showFeedback("❌ 檔案解析失敗");
-                }
-                csvInput.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function parseCSV(text) {
-            const lines = text.split(/\r\n|\n/);
-            let isDataSection = false;
-            
-            let newCenterOffset = { ...centerOffset };
-            let newSmoothing = smoothingFactor;
-            let newTriggerRadius = defaultTriggerRadius;
-            let newSoundSettings = { ...soundSettings };
-            let newCalibrationData = {};
-            let newMouthEnabled = mouthControlEnabled;
-            let newMouthTrigger = mouthTriggerMode;
-
-            for (let line of lines) {
-                line = line.trim();
-                if (!line) continue;
-                
-                if (line.startsWith("ID,Yaw,Pitch")) {
-                    isDataSection = true;
-                    continue;
-                }
-
-                const parts = line.split(',');
-                if (parts.length < 2) continue;
-
-                if (!isDataSection) {
-                    const key = parts[0].trim();
-                    const val = parts[1].trim();
-                    
-                    switch(key) {
-                        case 'Center_Yaw': newCenterOffset.yaw = parseFloat(val); break;
-                        case 'Center_Pitch': newCenterOffset.pitch = parseFloat(val); break;
-                        case 'Smoothing': newSmoothing = parseFloat(val); break;
-                        case 'Trigger_Radius_Global': newTriggerRadius = parseInt(val); break;
-                        case 'Sound_Instrument': newSoundSettings.instrument = val; break;
-                        case 'Sound_Volume': newSoundSettings.volume = parseFloat(val); break;
-                        case 'Sound_Duration': newSoundSettings.duration = parseFloat(val); break;
-                        case 'Sound_ReturnToCenter': newSoundSettings.returnToCenter = (val === 'true'); break;
-                        case 'Mouth_Control_Enabled': newMouthEnabled = (val === 'true'); break;
-                        case 'Mouth_Trigger_Mode': newMouthTrigger = val; break;
-                    }
-                } else {
-                    const id = parseInt(parts[0]);
-                    if (id >= 1 && id <= 9) {
-                        const yaw = parseFloat(parts[1]);
-                        const pitch = parseFloat(parts[2]);
-                        if (!isNaN(yaw) && !isNaN(pitch)) {
-                            const rad = parts[3] ? parseInt(parts[3]) : newTriggerRadius;
-                            const semi = parts[4] ? parseInt(parts[4]) : 0;
-                            const base = (parts[5] && parts[5] !== '') ? parseInt(parts[5]) : DEFAULT_BASE_MIDI[id];
-                            const name = parts[6] || NOTE_NAMES[id];
-
-                            newCalibrationData[id] = {
-                                yaw: yaw,
-                                pitch: pitch,
-                                radius: rad,
-                                semitoneShift: semi,
-                                baseMidi: base,
-                                name: name
-                            };
-                        }
-                    }
-                }
-            }
-
-            centerOffset = newCenterOffset;
-            smoothingFactor = newSmoothing;
-            defaultTriggerRadius = newTriggerRadius;
-            soundSettings = newSoundSettings;
-            calibrationData = newCalibrationData;
-            mouthControlEnabled = newMouthEnabled;
-            mouthTriggerMode = newMouthTrigger;
-
-            speedSlider.value = smoothingFactor;
-            radiusSlider.value = defaultTriggerRadius;
-            radiusValDisplay.innerText = defaultTriggerRadius;
-            
-            instrumentSelect.value = soundSettings.instrument;
-            volSlider.value = soundSettings.volume * 100;
-            volValDisplay.innerText = `${Math.round(soundSettings.volume * 100)}%`;
-            durSlider.value = soundSettings.duration;
-            durValDisplay.innerText = `${soundSettings.duration}s`;
-            returnCenterToggle.checked = soundSettings.returnToCenter;
-            
-            mouthEnableCheck.checked = mouthControlEnabled;
-            mouthTriggerModeSelect.value = mouthTriggerMode;
-
-            saveConfig();
-            updateModeDisplay();
-            
-            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
-            for (let id in calibrationData) {
-                const btn = document.getElementById(`btn-${id}`);
-                if(btn) btn.classList.add('recorded');
-            }
-
-            showFeedback("✅ CSV 匯入成功！");
-        }
-
-        function exportCSV() {
-            const data = {
-                Profile: currentProfileIndex,
-                Center_Yaw: centerOffset.yaw.toFixed(4),
-                Center_Pitch: centerOffset.pitch.toFixed(4),
-                Smoothing: smoothingFactor,
-                Trigger_Radius_Global: defaultTriggerRadius,
-                Sound_Instrument: soundSettings.instrument,
-                Sound_Volume: soundSettings.volume,
-                Sound_Duration: soundSettings.duration,
-                Sound_ReturnToCenter: soundSettings.returnToCenter,
-                Mouth_Control_Enabled: mouthControlEnabled,
-                Mouth_Trigger_Mode: mouthTriggerMode
-            };
-            let csvContent = "\uFEFFParameter,Value\n"; 
-            for (const [key, value] of Object.entries(data)) {
-                csvContent += `${key},${value}\n`;
-            }
-            csvContent += "\nID,Yaw,Pitch,Radius,SemitoneShift,BaseMidi,Name\n";
-            for (let i = 1; i <= 9; i++) {
-                if (calibrationData[i]) {
-                    const d = calibrationData[i];
-                    const oct = d.semitoneShift || 0;
-                    const base = d.baseMidi !== undefined ? d.baseMidi : (DEFAULT_BASE_MIDI[i] || "");
-                    csvContent += `${i},${d.yaw.toFixed(4)},${d.pitch.toFixed(4)},${d.radius || defaultTriggerRadius},${oct},${base},${d.name}\n`;
-                } else {
-                    csvContent += `${i},,,,,,,\n`;
-                }
-            }
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            const date = new Date().toISOString().slice(0, 10);
-            link.setAttribute("download", `head_tracker_profile_${currentProfileIndex}_${date}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showFeedback("✅ CSV 匯出成功！");
-        }
-
-        function setEditMode(enable) {
-            isEditMode = enable;
-            if (enable) {
-                modeEditBtn.classList.add('active');
-                modeEditBtn.style.background = '#3b82f6';
-                modeEditBtn.style.color = '#fff';
-                modeRecBtn.classList.remove('active-rec');
-                modeRecBtn.style.background = '#1f2937';
-                modeRecBtn.style.color = '#9ca3af';
-                recControls.classList.add('hidden');
-                gridHint.innerText = "點擊下方按鈕「選取」並設定參數：";
-            } else {
-                modeRecBtn.classList.add('active-rec');
-                modeRecBtn.style.background = '#ef4444';
-                modeRecBtn.style.color = '#fff';
-                modeEditBtn.classList.remove('active');
-                modeEditBtn.style.background = '#1f2937';
-                modeEditBtn.style.color = '#9ca3af';
-                recControls.classList.remove('hidden');
-                gridHint.innerText = "點擊下方按鈕「錄製」位置：";
-                selectedPointId = null;
-                pointSettingsPanel.classList.add('hidden');
-                document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
-            }
-        }
-
-        function handleGridClick(id, name) {
-            if (isEditMode) {
-                selectPoint(id);
-            } else {
-                recordPose(id, name);
-            }
-        }
-
-        function selectPoint(id) {
-            if (!calibrationData[id]) {
-                showFeedback("請先錄製該點才能編輯");
-                return;
-            }
-            selectedPointId = id;
-            const data = calibrationData[id];
-            
-            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
-            document.getElementById(`btn-${id}`).classList.add('selected');
-            
-            pointSettingsPanel.classList.remove('hidden');
-            selectedPointName.innerText = data.name;
-            
-            const r = data.radius || defaultTriggerRadius;
-            pointRadiusSlider.value = r;
-            pointRadiusVal.innerText = r;
-            
-            const semi = data.semitoneShift || 0;
-            updateSemitoneButtons(semi);
-            
-            const currentBase = data.baseMidi !== undefined ? data.baseMidi : DEFAULT_BASE_MIDI[id];
-            baseNoteSelect.value = currentBase !== null ? currentBase : -1;
-        }
-
-        function updateSemitoneButtons(val) {
-            document.getElementById('semitone-flat-btn').classList.remove('active');
-            document.getElementById('semitone-std-btn').classList.remove('active');
-            document.getElementById('semitone-sharp-btn').classList.remove('active');
-            
-            if (val === -1) document.getElementById('semitone-flat-btn').classList.add('active');
-            else if (val === 1) document.getElementById('semitone-sharp-btn').classList.add('active');
-            else document.getElementById('semitone-std-btn').classList.add('active');
-        }
-
-        function setPointSemitone(val) {
-            if (selectedPointId && calibrationData[selectedPointId]) {
-                calibrationData[selectedPointId].semitoneShift = val;
-                updateSemitoneButtons(val);
-                saveConfig();
-                playNote(0, selectedPointId, true); 
-            }
-        }
-        
-        pointRadiusSlider.addEventListener('input', (e) => {
-            if (selectedPointId && calibrationData[selectedPointId]) {
-                const val = parseInt(e.target.value);
-                calibrationData[selectedPointId].radius = val;
-                pointRadiusVal.innerText = val;
-            }
-        });
-        pointRadiusSlider.addEventListener('change', saveConfig);
-
-        function toggleCalibration() {
-            accompPanel.classList.remove('open'); // 關閉伴奏面板
-            calibPanel.classList.toggle('open');
-        }
-
-        function toggleAccompPanel() {
-            calibPanel.classList.remove('open'); // 關閉校正面板
-            accompPanel.classList.toggle('open');
-        }
-
-        function toggleSound() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-            isSoundEnabled = !isSoundEnabled;
-            if (isSoundEnabled) {
-                soundBtn.innerHTML = "<span>🔊</span> 音效已開啟";
-                soundBtn.classList.add('active');
-                playNote(523.25, null, true); 
-            } else {
-                soundBtn.innerHTML = "<span>🔇</span> 點擊開啟音效 (請檢查靜音鍵)";
-                soundBtn.classList.remove('active');
-            }
-        }
-
-        soundBtn.addEventListener('touchstart', function(e) {
-            e.preventDefault(); toggleSound();
-        });
-
         function playNote(freq, pointId, forcePlay = false) {
             if (!isSoundEnabled || !audioCtx || !freq) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1166,26 +598,28 @@
             let finalFreq = freq;
 
             if (pointId) {
-                const savedMidi = calibrationData[pointId]?.baseMidi;
-                baseMidi = savedMidi !== undefined ? savedMidi : DEFAULT_BASE_MIDI[pointId];
+                const calibData = calibrationSystem.getCalibrationData();
+                const savedMidi = calibData[pointId]?.baseMidi;
+                baseMidi = savedMidi !== undefined ? savedMidi : calibrationSystem.DEFAULT_BASE_MIDI[pointId];
                 
-                if(baseMidi !== null) {
+                if (baseMidi !== null) {
                     let shifts = 0;
-                    if (isHighOctave) shifts += 12; 
-                    if (calibrationData[pointId]) {
-                        shifts += (calibrationData[pointId].semitoneShift || 0);
+                    if (uiController.getIsHighOctave()) shifts += 12;
+                    if (calibData[pointId]) {
+                        shifts += (calibData[pointId].semitoneShift || 0);
                     }
                     const finalMidi = baseMidi + shifts;
                     finalFreq = 440 * Math.pow(2, (finalMidi - 69) / 12);
-                    updateInfoPanel(finalMidi, pointId);
-                } else if (!forcePlay) return; // Rest
+                    uiController.updateInfoPanel(finalMidi, pointId);
+                } else if (!forcePlay) return;
             } else {
-                updateInfoPanel(72, null);
+                uiController.updateInfoPanel(72, null);
             }
             
             if (finalFreq === 0) return;
 
             const now = audioCtx.currentTime;
+            const soundSettings = calibrationSystem.getSoundSettings();
             const vol = soundSettings.volume;
             const dur = soundSettings.duration;
             const inst = soundSettings.instrument;
@@ -1210,386 +644,138 @@
                 osc1.type = 'square'; osc1.frequency.setValueAtTime(finalFreq, now);
                 gainNode.gain.setValueAtTime(0, now);
                 gainNode.gain.linearRampToValueAtTime(vol * 0.3, now + 0.01);
-                gainNode.gain.linearRampToValueAtTime(0, now + 0.1); 
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
                 osc1.connect(gainNode);
                 osc1.start(now); osc1.stop(now + 0.1);
             } else if (inst === 'flute') {
                 osc1 = audioCtx.createOscillator();
                 osc1.type = 'sine'; osc1.frequency.setValueAtTime(finalFreq, now);
                 gainNode.gain.setValueAtTime(0, now);
-                gainNode.gain.linearRampToValueAtTime(vol * 0.8, now + 0.1); 
+                gainNode.gain.linearRampToValueAtTime(vol * 0.8, now + 0.1);
                 gainNode.gain.linearRampToValueAtTime(0.001, now + dur);
                 osc1.connect(gainNode);
                 osc1.start(now); osc1.stop(now + dur);
             }
         }
 
-        function toggleOctave() {
-            isHighOctave = !isHighOctave;
-            if (isHighOctave) {
-                octaveIndicator.innerText = "🎹 音高: 高八度 (+8va)";
-                octaveIndicator.classList.add("active");
-            } else {
-                octaveIndicator.innerText = "🎹 音高: 標準";
-                octaveIndicator.classList.remove("active");
-            }
-        }
-
-        function updateInfoPanel(midi, pointId) {
-            const noteIndex = midi % 12;
-            const octave = Math.floor(midi / 12) - 1;
-            const noteName = NOTE_STRS[noteIndex] + octave;
-            const freq = 440 * Math.pow(2, (midi - 69) / 12);
-            
-            currentNoteNameDisplay.innerText = noteName;
-            currentFreqDisplay.innerText = `${freq.toFixed(1)} Hz`;
-            if (pointId) currentSolfegeDisplay.innerText = SOLFEGE_MAP[pointId] || "";
-            else currentSolfegeDisplay.innerText = "測試音";
-            
-            noteInfoPanel.style.borderColor = '#e879f9';
-            setTimeout(() => { noteInfoPanel.style.borderColor = '#a855f7'; }, 100);
-        }
-
-        function toggleDebug() { isDebugVisible = showDebugCheck.checked; }
-        function toggleZones() { isZonesVisible = showZonesCheck.checked; }
+        // ============================================================
+        // UI 事件處理函數（全域函數，供 onclick 使用）
+        // ============================================================
         
-        // 新增：切換導引框顯示
-        function toggleGuide() {
-            if (showGuideCheck.checked) {
-                faceGuide.classList.add('active');
+        function toggleSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            isSoundEnabled = !isSoundEnabled;
+            if (isSoundEnabled) {
+                soundBtn.innerHTML = "<span>🔊</span> 音效已開啟";
+                soundBtn.classList.add('active');
+                playNote(523.25, null, true);
             } else {
-                faceGuide.classList.remove('active');
+                soundBtn.innerHTML = "<span>🔇</span> 點擊開啟音效 (請檢查靜音鍵)";
+                soundBtn.classList.remove('active');
             }
+        }
+
+        function toggleCalibration() {
+            uiController.toggleCalibration();
+        }
+
+        function toggleAccompPanel() {
+            uiController.toggleAccompPanel();
+        }
+
+        function toggleDebug() {
+            uiController.toggleDebug();
+        }
+
+        function toggleZones() {
+            uiController.toggleZones();
+        }
+
+        function toggleGuide() {
+            uiController.toggleGuide();
+        }
+
+        function setEditMode(enable) {
+            uiController.setEditMode(enable);
+        }
+
+        function handleGridClick(id, name) {
+            uiController.handleGridClick(id, name);
+        }
+
+        function setPointSemitone(val) {
+            uiController.setPointSemitone(val);
+        }
+
+        function switchProfile(index) {
+            uiController.switchProfile(index);
         }
 
         function setCenter() {
-            if (rawYaw !== 0 || rawPitch !== 0) {
-                centerOffset.yaw = rawYaw;
-                centerOffset.pitch = rawPitch;
-                showFeedback("✅ 已設定為中心！");
-                saveConfig(); 
-            }
+            calibrationSystem.setCenter(faceTracker.getRawYaw(), faceTracker.getRawPitch());
         }
 
         function toggleRangeDetection() {
-            isRangeDetecting = !isRangeDetecting;
-            if (isRangeDetecting) {
-                rangeBtn.innerHTML = "<span>⏹</span> 完成並自動校正中心";
-                rangeBtn.classList.replace('bg-purple-900/50', 'bg-red-600');
-                rangeBtn.classList.replace('border-purple-800', 'border-red-600');
-                rangeHint.classList.remove('hidden');
-                rangeTrace = [];
-                const currentY = normalizeYaw(smoothYaw);
-                const currentP = normalizePitch(smoothPitch);
-                rangeMinYaw = currentY; rangeMaxYaw = currentY;
-                rangeMinPitch = currentP; rangeMaxPitch = currentP;
-            } else {
-                rangeBtn.innerHTML = "<span>🌀</span> 開始圓形範圍偵測 (推薦)";
-                rangeBtn.classList.replace('bg-red-600', 'bg-purple-900/50');
-                rangeBtn.classList.replace('border-red-600', 'border-purple-800');
-                rangeHint.classList.add('hidden');
-                generatePointsFromRange();
-                showZonesCheck.checked = true;
-                isZonesVisible = true;
-            }
-        }
-
-        function generatePointsFromRange() {
-            if (rangeMinYaw === Infinity) return; 
-            const driftYaw = (rangeMinYaw + rangeMaxYaw) / 2;
-            const driftPitch = (rangeMinPitch + rangeMaxPitch) / 2;
-            centerOffset.yaw += driftYaw;
-            centerOffset.pitch += driftPitch;
-            const spanYaw = (rangeMaxYaw - rangeMinYaw) / 2; 
-            const spanPitch = (rangeMaxPitch - rangeMinPitch) / 2;
-            const y_left = spanYaw; const y_right = -spanYaw; const y_mid = 0;
-            const p_top = -spanPitch; const p_btm = spanPitch; const p_mid = 0;
-            const grid = [
-                {id: 1, y: y_left, p: p_top, n: 'Do (1)'}, {id: 2, y: y_mid, p: p_top, n: 'Re (2)'}, {id: 3, y: y_right, p: p_top, n: 'Mi (3)'},
-                {id: 4, y: y_left, p: p_mid, n: 'Fa (4)'}, {id: 5, y: y_mid, p: p_mid, n: '無 (5)'}, {id: 6, y: y_right, p: p_mid, n: 'So (6)'},
-                {id: 7, y: y_left, p: p_btm, n: 'La (7)'}, {id: 8, y: y_mid, p: p_btm, n: 'Si (8)'}, {id: 9, y: y_right, p: p_btm, n: 'High Do'}
-            ];
-            calibrationData = {};
-            grid.forEach(pt => {
-                calibrationData[pt.id] = { yaw: pt.y, pitch: pt.p, name: pt.n, radius: defaultTriggerRadius };
-                const btn = document.getElementById(`btn-${pt.id}`);
-                if(btn) btn.classList.add('recorded');
-            });
-            updateModeDisplay();
-            saveConfig(); 
-            showFeedback("✅ 已自動校正中心與範圍！");
-        }
-
-        function recordPose(id, name) {
-            const existing = calibrationData[id] || {};
-            calibrationData[id] = { 
-                yaw: normalizeYaw(smoothYaw), 
-                pitch: normalizePitch(smoothPitch), 
-                name: name, 
-                radius: existing.radius || defaultTriggerRadius,
-                semitoneShift: existing.semitoneShift || 0 
-            };
-            const btn = document.getElementById(`btn-${id}`);
-            if(btn) {
-                btn.classList.add('recorded');
-                btn.style.background = '#00ffcc'; btn.style.color = '#000';
-                setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 200);
-            }
-            updateModeDisplay();
-            saveConfig(); 
+            calibrationSystem.toggleRangeDetection(faceTracker.getSmoothYaw(), faceTracker.getSmoothPitch());
         }
 
         function resetCalibration() {
-            calibrationData = {}; lastDetectedId = null;
-            document.querySelectorAll('.calib-btn').forEach(btn => { btn.classList.remove('recorded'); btn.classList.remove('active'); });
-            updateModeDisplay();
-            isRangeDetecting = false;
-            const key = STORAGE_KEY_PREFIX + currentProfileIndex;
-            localStorage.removeItem(key);
-            showFeedback(`已重置設定檔 ${currentProfileIndex}`);
+            calibrationSystem.resetCalibration();
         }
 
-        function showFeedback(msg) {
-            const oldColor = statusText.style.color;
-            const oldText = statusText.innerText;
-            statusText.innerText = msg;
-            statusText.style.color = "#00ff00";
-            setTimeout(() => { 
-                if(statusText.innerText === msg) {
-                    statusText.innerText = oldText; 
-                    statusText.style.color = oldColor; 
-                }
-            }, 2000);
+        function saveConfig() {
+            calibrationSystem.saveConfig();
         }
 
-        function updateModeDisplay() {
-            if(!modeIndicator) return;
-            const count = Object.keys(calibrationData).length;
-            if (count > 0) { modeIndicator.innerText = `模式: 自定義 (${count}/9 點)`; modeIndicator.style.color = '#3b82f6'; } 
-            else { modeIndicator.innerText = "模式: 預設通用"; modeIndicator.style.color = '#fbbf24'; }
+        function loadConfig() {
+            calibrationSystem.loadConfig();
         }
 
-        function updateFPS() {
-            const now = performance.now(); frameCount++;
-            if (now - lastTime >= 1000) { valFps.innerText = frameCount; frameCount = 0; lastTime = now; }
-            requestAnimationFrame(updateFPS);
+        function exportCSV() {
+            calibrationSystem.exportCSV();
         }
-        updateFPS();
 
-        function mapToCanvas(val, isYaw, width, height) {
-            const scale = 1.0; 
-            return isYaw ? (val * scale + 0.5) * width : (val * scale + 0.5) * height;
+        function importCSV() {
+            calibrationSystem.importCSV();
         }
-        
-        function normalizeYaw(raw) { return raw - centerOffset.yaw; }
-        function normalizePitch(raw) { return raw - centerOffset.pitch; }
 
-        function onResults(results) {
-            loader.classList.add('hidden');
-            const width = videoElement.videoWidth; const height = videoElement.videoHeight;
-            canvasElement.width = width; canvasElement.height = height;
-            canvasCtx.save(); canvasCtx.clearRect(0, 0, width, height);
-            
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const landmarks = results.multiFaceLandmarks[0];
-                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C020', lineWidth: 1});
-                
-                const nose = landmarks[1], leftEye = landmarks[33], rightEye = landmarks[263], chin = landmarks[152], topHead = landmarks[10];
-                const upperLip = landmarks[13], lowerLip = landmarks[14];
+        function handleFileSelect(evt) {
+            calibrationSystem.handleFileSelect(evt);
+        }
 
-                const midEyesX = (leftEye.x + rightEye.x) / 2;
-                const faceWidth = Math.abs(rightEye.x - leftEye.x); 
-                rawYaw = (nose.x - midEyesX) / faceWidth; 
-                
-                const midEyesY = (leftEye.y + rightEye.y) / 2;
-                const faceHeight = Math.abs(chin.y - topHead.y);
-                rawPitch = (nose.y - midEyesY) / faceHeight;
-
-                smoothYaw = smoothYaw * (1 - smoothingFactor) + rawYaw * smoothingFactor;
-                smoothPitch = smoothPitch * (1 - smoothingFactor) + rawPitch * smoothingFactor;
-
-                const dispYaw = normalizeYaw(smoothYaw);
-                const dispPitch = normalizePitch(smoothPitch);
-
-                valYaw.innerText = dispYaw.toFixed(2); 
-                valPitch.innerText = dispPitch.toFixed(2);
-
-                const mouthOpenDist = Math.abs(lowerLip.y - upperLip.y);
-                const mouthRatio = mouthOpenDist / faceHeight;
-                const isCurrentlyOpen = mouthRatio > MOUTH_OPEN_THRESHOLD;
-
-                // Mouth Control Logic
-                if (mouthControlEnabled) {
-                    if (mouthTriggerMode === 'open') {
-                        if (isCurrentlyOpen && !wasMouthOpen) {
-                           toggleOctave();
-                        }
-                    } else if (mouthTriggerMode === 'close') {
-                        if (!isCurrentlyOpen && wasMouthOpen) {
-                           toggleOctave();
-                        }
-                    }
-                }
-                wasMouthOpen = isCurrentlyOpen;
-
-                if (isDebugVisible) {
-                    const ulX = upperLip.x * width;
-                    const ulY = upperLip.y * height;
-                    const llX = lowerLip.x * width;
-                    const llY = lowerLip.y * height;
-                    canvasCtx.beginPath();
-                    canvasCtx.moveTo(ulX, ulY);
-                    canvasCtx.lineTo(llX, llY);
-                    canvasCtx.lineWidth = 3;
-                    canvasCtx.strokeStyle = isCurrentlyOpen ? "#00ffcc" : "#ff0055"; 
-                    canvasCtx.stroke();
-                }
-
-                if (isRangeDetecting) {
-                    if (dispYaw < rangeMinYaw) rangeMinYaw = dispYaw;
-                    if (dispYaw > rangeMaxYaw) rangeMaxYaw = dispYaw;
-                    if (dispPitch < rangeMinPitch) rangeMinPitch = dispPitch;
-                    if (dispPitch > rangeMaxPitch) rangeMaxPitch = dispPitch;
-                    rangeTrace.push({x: dispYaw, y: dispPitch});
-                    canvasCtx.fillStyle = "#00ff00";
-                    for(let pt of rangeTrace) {
-                         const tx = mapToCanvas(pt.x, true, width, height);
-                         const ty = mapToCanvas(pt.y, false, width, height);
-                         canvasCtx.fillRect(tx, ty, 2, 2);
-                    }
-                    const x1 = mapToCanvas(rangeMinYaw, true, width, height);
-                    const x2 = mapToCanvas(rangeMaxYaw, true, width, height);
-                    const y1 = mapToCanvas(rangeMinPitch, false, width, height);
-                    const y2 = mapToCanvas(rangeMaxPitch, false, width, height);
-                    const bx = Math.min(x1, x2);
-                    const by = Math.min(y1, y2);
-                    const bw = Math.abs(x1 - x2);
-                    const bh = Math.abs(y1 - y2);
-                    canvasCtx.strokeStyle = "#00ff00";
-                    canvasCtx.lineWidth = 2;
-                    canvasCtx.strokeRect(bx, by, bw, bh);
-                }
-
-                let detectedId = null; let detectedName = "";
-                const curX = mapToCanvas(dispYaw, true, width, height); 
-                const curY = mapToCanvas(dispPitch, false, width, height);
-
-                let minDistance = Infinity;
-                if (Object.keys(calibrationData).length > 0) {
-                    for (const [id, data] of Object.entries(calibrationData)) {
-                        const targetX = mapToCanvas(data.yaw, true, width, height);
-                        const targetY = mapToCanvas(data.pitch, false, width, height);
-                        const dist = Math.sqrt(Math.pow(curX - targetX, 2) + Math.pow(curY - targetY, 2));
-                        const r = data.radius || defaultTriggerRadius;
-                        if (dist < r) {
-                            if (dist < minDistance) {
-                                minDistance = dist;
-                                detectedId = parseInt(id);
-                                detectedName = data.name;
-                            }
-                        }
-                    }
-                }
-
-                if (isZonesVisible && !isRangeDetecting && Object.keys(calibrationData).length > 0) {
-                    for (const [id, data] of Object.entries(calibrationData)) {
-                        const cx = mapToCanvas(data.yaw, true, width, height);
-                        const cy = mapToCanvas(data.pitch, false, width, height);
-                        const pid = parseInt(id);
-                        const isActive = (pid === detectedId);
-                        const r = data.radius || defaultTriggerRadius;
-                        
-                        const shift = data.semitoneShift || 0;
-                        
-                        canvasCtx.beginPath();
-                        canvasCtx.arc(cx, cy, r, 0, 2 * Math.PI);
-                        if (pid === 5) {
-                            canvasCtx.fillStyle = isActive ? "rgba(0, 255, 204, 0.4)" : "rgba(0, 255, 204, 0.15)";
-                            canvasCtx.strokeStyle = "#00ffcc";
-                        } else {
-                            if (shift === 1) canvasCtx.strokeStyle = "#fbbf24"; 
-                            else if (shift === -1) canvasCtx.strokeStyle = "#3b82f6";
-                            else canvasCtx.strokeStyle = "#d946ef";
-                            
-                            canvasCtx.fillStyle = isActive ? "rgba(217, 70, 239, 0.4)" : "rgba(217, 70, 239, 0.1)"; 
-                        }
-                        canvasCtx.fill();
-                        canvasCtx.lineWidth = (id == selectedPointId && isEditMode) ? 4 : 2; 
-                        canvasCtx.stroke();
-                        
-                        canvasCtx.fillStyle = "#fff";
-                        canvasCtx.font = "bold 12px Arial";
-                        canvasCtx.textAlign = "center";
-                        canvasCtx.textBaseline = "middle";
-                        
-                        let label = pid.toString();
-                        if(shift > 0) label += "♯";
-                        if(shift < 0) label += "♭";
-                        
-                        canvasCtx.save();
-                        canvasCtx.translate(cx, cy);
-                        canvasCtx.scale(-1, 1);
-                        canvasCtx.fillText(label, 0, 0);
-                        canvasCtx.restore();
-                    }
-                }
-
-                if (isDebugVisible) {
-                    canvasCtx.beginPath(); canvasCtx.arc(curX, curY, 8, 0, 2 * Math.PI); 
-                    canvasCtx.fillStyle = "#ff0055"; canvasCtx.fill();
-                }
-
-                if (detectedId !== null) {
-                    if (detectedId === 5) {
-                        isArmed = true;
-                        triggerStateText.innerText = "就緒 (已回中)";
-                        triggerStateText.style.color = "#00ffcc";
-                        lastDetectedId = 5;
-                    } else if (detectedId !== lastDetectedId) {
-                        if (isArmed || !soundSettings.returnToCenter) {
-                            playNote(NOTE_FREQS[detectedId], detectedId);
-                            if (soundSettings.returnToCenter) {
-                                isArmed = false;
-                                triggerStateText.innerText = "已觸發 (請回中間)";
-                                triggerStateText.style.color = "#fbbf24";
-                            }
-                        }
-                        lastDetectedId = detectedId;
-                    }
-                }
-
-                statusText.innerText = detectedId ? `${detectedId}. ${detectedName}` : "移動中...";
-                if (detectedId === 5) statusText.style.color = "#00ffcc";
-                else if (detectedId) statusText.style.color = "#d946ef";
-                else statusText.style.color = "#888";
-
-            } else {
-                statusText.innerText = "未偵測到臉部"; statusText.style.color = "#888";
+        function toggleAutoChords() {
+            const key = chordProgSelect.value;
+            if (key === 'none' && !accompaniment.isPlaying) {
+                uiController.showFeedback("⚠️ 請先選擇曲風");
+                return;
             }
-            canvasCtx.restore();
+
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            accompaniment.setAudioContext(audioCtx);
+
+            accompaniment.toggle(key);
         }
 
-        // [離線版說明]
-        // 請將下方的 locateFile 函式修改為 return file; 以支援離線使用
-        const faceMesh = new FaceMesh({locateFile: (file) => {
-            // 線上預覽 (請註解下方行，取消註解此行)
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-            // 離線版 (請取消註解此行)
-            // return file;
-        }});
+        // ============================================================
+        // 初始化 UI Controller & 載入設定
+        // ============================================================
+        
+        uiController.init();
+        calibrationSystem.init();
+        faceTracker.init();
 
-        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-        faceMesh.onResults(onResults);
-
-        const camera = new Camera(videoElement, {
-            onFrame: async () => { await faceMesh.send({image: videoElement}); },
-            width: 640, height: 480
-        });
-        camera.start().catch(err => { console.error(err); loader.innerHTML = `<div style="color:red">Error: ${err.message}</div>`; });
-
-        // Auto load on start
-        setTimeout(loadConfig, 1000);
-
+        // 安全檢查：確保 JS 庫載入
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("Error:", message);
+            if (message.includes("FaceMesh") || message.includes("Camera")) {
+                const loader = document.getElementById('loader');
+                if (loader) loader.innerHTML = `<div style="color:red; text-align:center;">程式庫載入失敗<br>請確認 JS 檔案是否存在</div>`;
+            }
+        };
     </script>
 </body>
 </html>
