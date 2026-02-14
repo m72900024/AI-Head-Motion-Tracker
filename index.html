@@ -356,6 +356,21 @@
                     <label for="metronome-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">開啟節拍器 (Click)</label>
                     <div id="metronome-light" class="metronome-light" title="節拍指示燈"></div>
                 </div>
+
+                <!-- 新增：語音報讀開關（無障礙輔助）-->
+                <div class="flex items-center gap-2 mt-1 bg-purple-700/50 p-1 rounded border border-purple-600">
+                    <input type="checkbox" id="voice-check" class="w-4 h-4 accent-purple-500 cursor-pointer">
+                    <label for="voice-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🔊 語音報讀旋律 (無障礙)</label>
+                </div>
+
+                <!-- 語速調整（語音報讀啟用時顯示）-->
+                <div id="voice-rate-controls" class="mt-1 hidden">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[0.6rem] text-gray-400">語音速度:</label>
+                        <span id="voice-rate-val" class="text-[0.6rem] text-gray-300">正常</span>
+                    </div>
+                    <input type="range" id="voice-rate-slider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-500">
+                </div>
                 
                 <div class="flex gap-2 items-center mt-2">
                     <button onclick="toggleAutoChords()" id="chord-play-btn" class="flex-1 bg-green-800/60 hover:bg-green-700 text-white py-1 rounded text-xs border border-green-600">▶ 開始伴奏</button>
@@ -616,6 +631,35 @@
         const metronomeCheck = document.getElementById('metronome-check');
         metronomeCheck.addEventListener('change', (e) => {
             accompaniment.setMetronome(e.target.checked);
+        });
+
+        const voiceCheck = document.getElementById('voice-check');
+        const voiceRateControls = document.getElementById('voice-rate-controls');
+        const voiceRateSlider = document.getElementById('voice-rate-slider');
+        const voiceRateVal = document.getElementById('voice-rate-val');
+
+        voiceCheck.addEventListener('change', (e) => {
+            accompaniment.setVoice(e.target.checked);
+            // 顯示/隱藏語速控制
+            if (e.target.checked) {
+                voiceRateControls.classList.remove('hidden');
+            } else {
+                voiceRateControls.classList.add('hidden');
+            }
+        });
+
+        voiceRateSlider.addEventListener('input', (e) => {
+            const rate = parseFloat(e.target.value);
+            accompaniment.setVoiceRate(rate);
+            
+            // 更新顯示文字
+            let rateText = '正常';
+            if (rate < 0.8) rateText = '很慢';
+            else if (rate < 1.0) rateText = '慢';
+            else if (rate > 1.5) rateText = '很快';
+            else if (rate > 1.2) rateText = '快';
+            
+            voiceRateVal.innerText = rateText;
         });
 
         function flashMetronomeLight(isAccent) {

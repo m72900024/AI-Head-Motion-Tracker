@@ -28,6 +28,11 @@ class AccompanimentSystem {
         this.instrument = options.instrument || 'soft_pad';
         this.isArpeggio = options.isArpeggio || false;
         this.metronomeEnabled = options.metronomeEnabled || false;
+        
+        // 無障礙輔助
+        this.voiceEnabled = options.voiceEnabled || false;
+        this.voiceRate = options.voiceRate || 1.0;  // 語速 (0.5-2.0)
+        this.synth = window.speechSynthesis;
 
         // 當前選擇的進行
         this.currentProgressionKey = null;
@@ -303,6 +308,17 @@ class AccompanimentSystem {
         this.metronomeEnabled = enabled;
     }
 
+    setVoice(enabled) {
+        this.voiceEnabled = enabled;
+        if (!enabled && this.synth) {
+            this.synth.cancel(); // 停止所有語音
+        }
+    }
+
+    setVoiceRate(rate) {
+        this.voiceRate = parseFloat(rate);
+    }
+
     /**
      * 選擇和弦進行
      */
@@ -398,6 +414,11 @@ class AccompanimentSystem {
                 measureNumber: bar.m,
                 duration: durationSec
             });
+        }
+
+        // 語音報讀旋律提示（無障礙輔助）
+        if (this.voiceEnabled && bar.h) {
+            this._speakMelodyHint(bar.c, bar.h, bar.m);
         }
 
         // 播放和弦
@@ -638,6 +659,108 @@ class AccompanimentSystem {
                 progressionKey: this.currentProgressionKey
             });
         }
+    }
+
+    /**
+     * 語音報讀旋律提示（無障礙輔助）
+     * @param {string} chord - 和弦名稱（例如 "F", "C", "Bb"）
+     * @param {string} hint - 旋律提示（例如 "[4] ... [6][4]"）
+     * @param {number} measureNumber - 小節數（可選）
+     */
+    _speakMelodyHint(chord, hint, measureNumber) {
+        if (!this.synth || !hint) return;
+
+        // 取消之前的語音（避免重疊）
+        this.synth.cancel();
+
+        // 解析旋律提示，轉換為中文語音
+        let voiceText = '';
+
+        // 報讀小節數（如果有）
+        if (measureNumber !== undefined && measureNumber !== null) {
+            voiceText += `第 ${measureNumber} 小節，`;
+        }
+
+        // 報讀和弦名稱（簡化：只在非節拍器時報讀）
+        if (chord && chord !== 'NC') {
+            // 將和弦名稱轉為中文發音輔助
+            const chordChinese = this._chordToChinese(chord);
+            voiceText += `${chordChinese} 和弦，`;
+        }
+
+        // 解析旋律提示：[4] ... [6][4] → "彈位置 4，再彈位置 6 和 4"
+        const positions = hint.match(/\[(\d+)\]/g);
+        if (positions && positions.length > 0) {
+            const numbers = positions.map(p => p.match(/\d+/)[0]);
+            
+            if (numbers.length === 1) {
+                voiceText += `彈位置 ${numbers[0]}`;
+            } else {
+                voiceText += `彈位置 ${numbers[0]}`;
+                for (let i = 1; i < numbers.length; i++) {
+                    if (i === numbers.length - 1) {
+                        voiceText += `，再彈位置 ${numbers[i]}`;
+                    } else {
+                        voiceText += `，再 ${numbers[i]}`;
+                    }
+                }
+            }
+        } else if (hint.includes('Intro')) {
+            voiceText += '引子';
+        } else if (hint.includes('End')) {
+            voiceText += '結束';
+        } else if (hint.includes('Metronome')) {
+            voiceText = '節拍器'; // 節拍器模式只報讀這個
+        }
+
+        // 使用 Web Speech API 朗讀
+        const utterance = new SpeechSynthesisUtterance(voiceText);
+        utterance.lang = 'zh-TW';  // 繁體中文
+        utterance.rate = this.voiceRate;  // 語速
+        utterance.pitch = 1.0;
+        utterance.volume = 0.8;
+
+        this.synth.speak(utterance);
+    }
+
+    /**
+     * 將和弦名稱轉為中文發音輔助
+     */
+    _chordToChinese(chord) {
+        // 保持英文字母，但加上發音輔助
+        const chordMap = {
+            'C': 'C',
+            'D': 'D',
+            'E': 'E',
+            'F': 'F',
+            'G': 'G',
+            'A': 'A',
+            'B': 'B',
+            'Bb': 'B 降',
+            'Eb': 'E 降',
+            'Cm': 'C 小',
+            'Dm': 'D 小',
+            'Em': 'E 小',
+            'Fm': 'F 小',
+            'Gm': 'G 小',
+            'Am': 'A 小',
+            'Bm': 'B 小',
+            'C7': 'C 七',
+            'D7': 'D 七',
+            'E7': 'E 七',
+            'F7': 'F 七',
+            'G7': 'G 七',
+            'A7': 'A 七',
+            'Cm7': 'C 小七',
+            'Dm7': 'D 小七',
+            'Em7': 'E 小七',
+            'Am7': 'A 小七',
+            'Cmaj7': 'C 大七',
+            'Fmaj7': 'F 大七',
+            'Gmaj7': 'G 大七'
+        };
+        
+        return chordMap[chord] || chord;
     }
 }
 
