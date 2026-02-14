@@ -1,265 +1,372 @@
 /**
- * FaceTracker.js
- * 臉部追蹤系統 - MediaPipe Face Mesh 封裝
- * 
- * 功能：
- * - 初始化 MediaPipe Face Mesh
- * - 攝影機管理
- * - 頭部姿態計算（Yaw/Pitch）
- * - 平滑處理
+ * Face Tracker
+ * 負責臉部追蹤與 MediaPipe 邏輯、FPS 更新、座標轉換
  */
 
 class FaceTracker {
-    constructor(options = {}) {
-        // DOM 元素
-        this.videoElement = options.videoElement;
-        this.canvasElement = options.canvasElement;
-        this.canvasCtx = this.canvasElement ? this.canvasElement.getContext('2d') : null;
+    constructor(config = {}) {
+        this.config = config;
         
-        // MediaPipe
-        this.faceMesh = null;
-        this.camera = null;
-        
-        // 追蹤狀態
-        this.isRunning = false;
-        this.lastFrameTime = 0;
-        this.frameCount = 0;
-        this.fps = 0;
-        
-        // 頭部姿態
+        // Tracking State
         this.rawYaw = 0;
         this.rawPitch = 0;
         this.smoothYaw = 0;
         this.smoothPitch = 0;
+        this.wasMouthOpen = false;
+        this.lastDetectedId = null;
+        this.isArmed = true;
         
-        // 設定
-        this.smoothingFactor = options.smoothingFactor || CONFIG.tracking.smoothingFactor;
-        this.centerOffset = options.centerOffset || CONFIG.tracking.centerOffset;
+        // FPS Tracking
+        this.lastTime = 0;
+        this.frameCount = 0;
         
-        // 回調函數
-        this.onResults = options.onResults || null;
-        this.onFpsUpdate = options.onFpsUpdate || null;
-        this.onError = options.onError || null;
+        // Constants
+        this.MOUTH_OPEN_THRESHOLD = 0.08;
+        this.NOTE_FREQS = {
+            1: 261.63, 2: 293.66, 3: 329.63, 4: 349.23, 5: 0,
+            6: 392.00, 7: 440.00, 8: 493.88, 9: 523.25
+        };
+        
+        // DOM Elements
+        this.videoElement = document.getElementById('input_video');
+        this.canvasElement = document.getElementById('output_canvas');
+        this.canvasCtx = this.canvasElement.getContext('2d');
+        this.loader = document.getElementById('loader');
+        this.statusText = document.getElementById('status-text');
+        this.triggerStateText = document.getElementById('trigger-state');
+        this.valYaw = document.getElementById('val-yaw');
+        this.valPitch = document.getElementById('val-pitch');
+        this.valFps = document.getElementById('val-fps');
     }
 
-    /**
-     * 初始化 Face Mesh
-     */
-    async init() {
-        if (!window.FaceMesh) {
-            const error = 'MediaPipe Face Mesh library not loaded';
-            if (this.onError) this.onError(error);
-            throw new Error(error);
-        }
+    init() {
+        this.startFPSMonitoring();
+        this.initMediaPipe();
+    }
 
-        this.faceMesh = new FaceMesh({
+    // Start FPS Monitoring
+    startFPSMonitoring() {
+        const updateFPS = () => {
+            const now = performance.now();
+            this.frameCount++;
+            if (now - this.lastTime >= 1000) {
+                this.valFps.innerText = this.frameCount;
+                this.frameCount = 0;
+                this.lastTime = now;
+            }
+            requestAnimationFrame(updateFPS);
+        };
+        updateFPS();
+    }
+
+    // Initialize MediaPipe
+    initMediaPipe() {
+        const faceMesh = new FaceMesh({
             locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
             }
         });
-
-        this.faceMesh.setOptions({
+        
+        faceMesh.setOptions({
             maxNumFaces: 1,
             refineLandmarks: true,
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
-
-        this.faceMesh.onResults((results) => this._handleResults(results));
         
-        return this;
-    }
-
-    /**
-     * 啟動攝影機
-     */
-    async start() {
-        if (!this.faceMesh) {
-            await this.init();
-        }
-
-        if (!window.Camera) {
-            const error = 'MediaPipe Camera utility not loaded';
-            if (this.onError) this.onError(error);
-            throw new Error(error);
-        }
-
-        this.camera = new Camera(this.videoElement, {
+        faceMesh.onResults(this.onResults.bind(this));
+        
+        const camera = new Camera(this.videoElement, {
             onFrame: async () => {
-                await this.faceMesh.send({ image: this.videoElement });
+                await faceMesh.send({image: this.videoElement});
             },
-            width: 1280,
-            height: 720
+            width: 640,
+            height: 480
         });
-
-        await this.camera.start();
-        this.isRunning = true;
         
-        return this;
+        camera.start().catch(err => {
+            console.error(err);
+            this.loader.innerHTML = `<div style="color:red">Error: ${err.message}</div>`;
+        });
     }
 
-    /**
-     * 停止追蹤
-     */
-    stop() {
-        if (this.camera) {
-            this.camera.stop();
-        }
+    // Main MediaPipe Results Handler
+    onResults(results) {
+        this.loader.classList.add('hidden');
         
-        this.isRunning = false;
-    }
-
-    /**
-     * 處理 Face Mesh 結果
-     */
-    _handleResults(results) {
-        if (!this.canvasCtx || !this.canvasElement) return;
-
-        // 計算 FPS
-        const now = performance.now();
-        const elapsed = now - this.lastFrameTime;
+        const width = this.videoElement.videoWidth;
+        const height = this.videoElement.videoHeight;
+        this.canvasElement.width = width;
+        this.canvasElement.height = height;
         
-        if (elapsed >= 1000) {
-            this.fps = Math.round((this.frameCount / elapsed) * 1000);
-            this.frameCount = 0;
-            this.lastFrameTime = now;
-            
-            if (this.onFpsUpdate) {
-                this.onFpsUpdate(this.fps);
-            }
-        }
-        
-        this.frameCount++;
-
-        // 清除畫布
         this.canvasCtx.save();
-        this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
-
-        // 繪製影像
-        this.canvasCtx.drawImage(
-            results.image, 
-            0, 0, 
-            this.canvasElement.width, 
-            this.canvasElement.height
-        );
-
-        // 如果有偵測到臉部
+        this.canvasCtx.clearRect(0, 0, width, height);
+        
         if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
             const landmarks = results.multiFaceLandmarks[0];
             
-            // 計算頭部姿態
-            this._calculateHeadPose(landmarks);
+            // Draw face mesh
+            drawConnectors(this.canvasCtx, landmarks, FACEMESH_TESSELATION, {
+                color: '#C0C0C020',
+                lineWidth: 1
+            });
             
-            // 通知外部
-            if (this.onResults) {
-                this.onResults({
-                    landmarks: landmarks,
-                    yaw: this.smoothYaw,
-                    pitch: this.smoothPitch,
-                    rawYaw: this.rawYaw,
-                    rawPitch: this.rawPitch,
-                    fps: this.fps
-                });
+            // Key landmarks
+            const nose = landmarks[1];
+            const leftEye = landmarks[33];
+            const rightEye = landmarks[263];
+            const chin = landmarks[152];
+            const topHead = landmarks[10];
+            const upperLip = landmarks[13];
+            const lowerLip = landmarks[14];
+            
+            // Calculate Yaw (left-right)
+            const midEyesX = (leftEye.x + rightEye.x) / 2;
+            const faceWidth = Math.abs(rightEye.x - leftEye.x);
+            this.rawYaw = (nose.x - midEyesX) / faceWidth;
+            
+            // Calculate Pitch (up-down)
+            const midEyesY = (leftEye.y + rightEye.y) / 2;
+            const faceHeight = Math.abs(chin.y - topHead.y);
+            this.rawPitch = (nose.y - midEyesY) / faceHeight;
+            
+            // Smooth the values
+            const smoothingFactor = this.config.getSmoothingFactor ? this.config.getSmoothingFactor() : 0.15;
+            this.smoothYaw = this.smoothYaw * (1 - smoothingFactor) + this.rawYaw * smoothingFactor;
+            this.smoothPitch = this.smoothPitch * (1 - smoothingFactor) + this.rawPitch * smoothingFactor;
+            
+            // Normalize with center offset
+            const dispYaw = this.normalizeYaw(this.smoothYaw);
+            const dispPitch = this.normalizePitch(this.smoothPitch);
+            
+            this.valYaw.innerText = dispYaw.toFixed(2);
+            this.valPitch.innerText = dispPitch.toFixed(2);
+            
+            // Mouth Detection
+            const mouthOpenDist = Math.abs(lowerLip.y - upperLip.y);
+            const mouthRatio = mouthOpenDist / faceHeight;
+            const isCurrentlyOpen = mouthRatio > this.MOUTH_OPEN_THRESHOLD;
+            
+            // Mouth Control Logic
+            const mouthControlEnabled = this.config.getMouthControlEnabled ? this.config.getMouthControlEnabled() : false;
+            const mouthTriggerMode = this.config.getMouthTriggerMode ? this.config.getMouthTriggerMode() : 'close';
+            
+            if (mouthControlEnabled) {
+                if (mouthTriggerMode === 'open') {
+                    if (isCurrentlyOpen && !this.wasMouthOpen) {
+                        if (this.config.onToggleOctave) {
+                            this.config.onToggleOctave();
+                        }
+                    }
+                } else if (mouthTriggerMode === 'close') {
+                    if (!isCurrentlyOpen && this.wasMouthOpen) {
+                        if (this.config.onToggleOctave) {
+                            this.config.onToggleOctave();
+                        }
+                    }
+                }
             }
+            this.wasMouthOpen = isCurrentlyOpen;
+            
+            // Draw mouth debug line
+            const isDebugVisible = this.config.getIsDebugVisible ? this.config.getIsDebugVisible() : false;
+            if (isDebugVisible) {
+                const ulX = upperLip.x * width;
+                const ulY = upperLip.y * height;
+                const llX = lowerLip.x * width;
+                const llY = lowerLip.y * height;
+                this.canvasCtx.beginPath();
+                this.canvasCtx.moveTo(ulX, ulY);
+                this.canvasCtx.lineTo(llX, llY);
+                this.canvasCtx.lineWidth = 3;
+                this.canvasCtx.strokeStyle = isCurrentlyOpen ? "#00ffcc" : "#ff0055";
+                this.canvasCtx.stroke();
+            }
+            
+            // Range Detection
+            const isRangeDetecting = this.config.getIsRangeDetecting ? this.config.getIsRangeDetecting() : false;
+            if (isRangeDetecting) {
+                if (this.config.onRangeUpdate) {
+                    this.config.onRangeUpdate(dispYaw, dispPitch);
+                }
+                
+                // Draw range trace
+                const rangeTrace = this.config.getRangeTrace ? this.config.getRangeTrace() : [];
+                this.canvasCtx.fillStyle = "#00ff00";
+                for (let pt of rangeTrace) {
+                    const tx = this.mapToCanvas(pt.x, true, width, height);
+                    const ty = this.mapToCanvas(pt.y, false, width, height);
+                    this.canvasCtx.fillRect(tx, ty, 2, 2);
+                }
+                
+                // Draw bounding box
+                const rangeBounds = this.config.getRangeBounds ? this.config.getRangeBounds() : {};
+                const x1 = this.mapToCanvas(rangeBounds.minYaw, true, width, height);
+                const x2 = this.mapToCanvas(rangeBounds.maxYaw, true, width, height);
+                const y1 = this.mapToCanvas(rangeBounds.minPitch, false, width, height);
+                const y2 = this.mapToCanvas(rangeBounds.maxPitch, false, width, height);
+                const bx = Math.min(x1, x2);
+                const by = Math.min(y1, y2);
+                const bw = Math.abs(x1 - x2);
+                const bh = Math.abs(y1 - y2);
+                this.canvasCtx.strokeStyle = "#00ff00";
+                this.canvasCtx.lineWidth = 2;
+                this.canvasCtx.strokeRect(bx, by, bw, bh);
+            }
+            
+            // Point Detection
+            let detectedId = null;
+            let detectedName = "";
+            const curX = this.mapToCanvas(dispYaw, true, width, height);
+            const curY = this.mapToCanvas(dispPitch, false, width, height);
+            
+            let minDistance = Infinity;
+            const calibrationData = this.config.getCalibrationData ? this.config.getCalibrationData() : {};
+            
+            if (Object.keys(calibrationData).length > 0) {
+                for (const [id, data] of Object.entries(calibrationData)) {
+                    const targetX = this.mapToCanvas(data.yaw, true, width, height);
+                    const targetY = this.mapToCanvas(data.pitch, false, width, height);
+                    const dist = Math.sqrt(Math.pow(curX - targetX, 2) + Math.pow(curY - targetY, 2));
+                    const r = data.radius || 40;
+                    if (dist < r) {
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            detectedId = parseInt(id);
+                            detectedName = data.name;
+                        }
+                    }
+                }
+            }
+            
+            // Draw Zones
+            const isZonesVisible = this.config.getIsZonesVisible ? this.config.getIsZonesVisible() : false;
+            const selectedPointId = this.config.getSelectedPointId ? this.config.getSelectedPointId() : null;
+            const isEditMode = this.config.getIsEditMode ? this.config.getIsEditMode() : false;
+            
+            if (isZonesVisible && !isRangeDetecting && Object.keys(calibrationData).length > 0) {
+                for (const [id, data] of Object.entries(calibrationData)) {
+                    const cx = this.mapToCanvas(data.yaw, true, width, height);
+                    const cy = this.mapToCanvas(data.pitch, false, width, height);
+                    const pid = parseInt(id);
+                    const isActive = (pid === detectedId);
+                    const r = data.radius || 40;
+                    const shift = data.semitoneShift || 0;
+                    
+                    this.canvasCtx.beginPath();
+                    this.canvasCtx.arc(cx, cy, r, 0, 2 * Math.PI);
+                    
+                    if (pid === 5) {
+                        this.canvasCtx.fillStyle = isActive ? "rgba(0, 255, 204, 0.4)" : "rgba(0, 255, 204, 0.15)";
+                        this.canvasCtx.strokeStyle = "#00ffcc";
+                    } else {
+                        if (shift === 1) this.canvasCtx.strokeStyle = "#fbbf24";
+                        else if (shift === -1) this.canvasCtx.strokeStyle = "#3b82f6";
+                        else this.canvasCtx.strokeStyle = "#d946ef";
+                        
+                        this.canvasCtx.fillStyle = isActive ? "rgba(217, 70, 239, 0.4)" : "rgba(217, 70, 239, 0.1)";
+                    }
+                    
+                    this.canvasCtx.fill();
+                    this.canvasCtx.lineWidth = (id == selectedPointId && isEditMode) ? 4 : 2;
+                    this.canvasCtx.stroke();
+                    
+                    // Draw label
+                    this.canvasCtx.fillStyle = "#fff";
+                    this.canvasCtx.font = "bold 12px Arial";
+                    this.canvasCtx.textAlign = "center";
+                    this.canvasCtx.textBaseline = "middle";
+                    
+                    let label = pid.toString();
+                    if (shift > 0) label += "♯";
+                    if (shift < 0) label += "♭";
+                    
+                    this.canvasCtx.save();
+                    this.canvasCtx.translate(cx, cy);
+                    this.canvasCtx.scale(-1, 1);
+                    this.canvasCtx.fillText(label, 0, 0);
+                    this.canvasCtx.restore();
+                }
+            }
+            
+            // Draw current position
+            if (isDebugVisible) {
+                this.canvasCtx.beginPath();
+                this.canvasCtx.arc(curX, curY, 8, 0, 2 * Math.PI);
+                this.canvasCtx.fillStyle = "#ff0055";
+                this.canvasCtx.fill();
+            }
+            
+            // Trigger Logic
+            if (detectedId !== null) {
+                if (detectedId === 5) {
+                    this.isArmed = true;
+                    this.triggerStateText.innerText = "就緒 (已回中)";
+                    this.triggerStateText.style.color = "#00ffcc";
+                    this.lastDetectedId = 5;
+                } else if (detectedId !== this.lastDetectedId) {
+                    const soundSettings = this.config.getSoundSettings ? this.config.getSoundSettings() : {};
+                    
+                    if (this.isArmed || !soundSettings.returnToCenter) {
+                        if (this.config.onPlayNote) {
+                            this.config.onPlayNote(this.NOTE_FREQS[detectedId], detectedId);
+                        }
+                        
+                        if (soundSettings.returnToCenter) {
+                            this.isArmed = false;
+                            this.triggerStateText.innerText = "已觸發 (請回中間)";
+                            this.triggerStateText.style.color = "#fbbf24";
+                        }
+                    }
+                    this.lastDetectedId = detectedId;
+                }
+            }
+            
+            // Update Status Text
+            this.statusText.innerText = detectedId ? `${detectedId}. ${detectedName}` : "移動中...";
+            if (detectedId === 5) this.statusText.style.color = "#00ffcc";
+            else if (detectedId) this.statusText.style.color = "#d946ef";
+            else this.statusText.style.color = "#888";
+            
+        } else {
+            this.statusText.innerText = "未偵測到臉部";
+            this.statusText.style.color = "#888";
         }
-
+        
         this.canvasCtx.restore();
     }
 
-    /**
-     * 計算頭部姿態（Yaw/Pitch）
-     */
-    _calculateHeadPose(landmarks) {
-        // 使用關鍵點估算頭部轉動
-        const nose = landmarks[1];
-        const leftEye = landmarks[33];
-        const rightEye = landmarks[263];
-        const chin = landmarks[152];
-
-        // Yaw (左右轉動)
-        const eyeCenter = (leftEye.x + rightEye.x) / 2;
-        this.rawYaw = (nose.x - eyeCenter) * 200;
-
-        // Pitch (上下點頭)
-        this.rawPitch = (chin.y - nose.y) * 200;
-
-        // 平滑處理
-        this.smoothYaw = this.smoothYaw * (1 - this.smoothingFactor) + 
-                         (this.rawYaw - this.centerOffset.yaw) * this.smoothingFactor;
-        
-        this.smoothPitch = this.smoothPitch * (1 - this.smoothingFactor) + 
-                           (this.rawPitch - this.centerOffset.pitch) * this.smoothingFactor;
+    // Coordinate Mapping
+    mapToCanvas(val, isYaw, width, height) {
+        const scale = 1.0;
+        return isYaw ? (val * scale + 0.5) * width : (val * scale + 0.5) * height;
     }
 
-    /**
-     * 設定中心偏移
-     */
-    setCenterOffset(yaw, pitch) {
-        this.centerOffset = { yaw, pitch };
+    // Normalize Yaw/Pitch
+    normalizeYaw(raw) {
+        const centerOffset = this.config.getCenterOffset ? this.config.getCenterOffset() : { yaw: 0, pitch: 0.45 };
+        return raw - centerOffset.yaw;
     }
 
-    /**
-     * 設定當前位置為中心
-     */
-    setCurrentAsCenter() {
-        this.centerOffset = {
-            yaw: this.rawYaw,
-            pitch: this.rawPitch
-        };
-        
-        this.smoothYaw = 0;
-        this.smoothPitch = 0;
+    normalizePitch(raw) {
+        const centerOffset = this.config.getCenterOffset ? this.config.getCenterOffset() : { yaw: 0, pitch: 0.45 };
+        return raw - centerOffset.pitch;
     }
 
-    /**
-     * 設定平滑係數
-     */
-    setSmoothingFactor(factor) {
-        this.smoothingFactor = UTILS.clamp(factor, 0, 1);
+    // Getters
+    getSmoothYaw() {
+        return this.smoothYaw;
     }
 
-    /**
-     * 取得當前頭部姿態
-     */
-    getPose() {
-        return {
-            yaw: this.smoothYaw,
-            pitch: this.smoothPitch,
-            rawYaw: this.rawYaw,
-            rawPitch: this.rawPitch
-        };
+    getSmoothPitch() {
+        return this.smoothPitch;
     }
 
-    /**
-     * 取得追蹤狀態
-     */
-    getState() {
-        return {
-            isRunning: this.isRunning,
-            fps: this.fps,
-            yaw: this.smoothYaw,
-            pitch: this.smoothPitch,
-            smoothingFactor: this.smoothingFactor,
-            centerOffset: this.centerOffset
-        };
+    getRawYaw() {
+        return this.rawYaw;
     }
 
-    /**
-     * 銷毀
-     */
-    destroy() {
-        this.stop();
-        
-        if (this.faceMesh) {
-            this.faceMesh.close();
-            this.faceMesh = null;
-        }
-        
-        this.camera = null;
+    getRawPitch() {
+        return this.rawPitch;
     }
-}
-
-// 匯出（支援 ES6 模組與傳統 script 標籤）
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = FaceTracker;
 }
