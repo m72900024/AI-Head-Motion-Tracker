@@ -284,9 +284,14 @@ class FaceTracker {
                     this.canvasCtx.textAlign = "center";
                     this.canvasCtx.textBaseline = "middle";
                     
-                    let label = pid.toString();
-                    if (shift > 0) label += "♯";
-                    if (shift < 0) label += "♭";
+                    let label;
+                    if (pid === 5) {
+                        label = "中心";
+                    } else {
+                        label = pid.toString();
+                        if (shift > 0) label += "♯";
+                        if (shift < 0) label += "♭";
+                    }
                     
                     this.canvasCtx.save();
                     this.canvasCtx.translate(cx, cy);
