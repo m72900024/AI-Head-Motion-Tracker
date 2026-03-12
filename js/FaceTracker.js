@@ -284,11 +284,13 @@ class FaceTracker {
                     this.canvasCtx.textAlign = "center";
                     this.canvasCtx.textBaseline = "middle";
                     
-                    let label;
-                    if (pid === 5) {
-                        label = "中心";
-                    } else {
-                        label = pid.toString();
+                    // 簡譜音階標籤：位置→音階度數
+                    const SCALE_LABELS = {
+                        1: "1", 2: "2", 3: "3", 4: "4", 5: "中心",
+                        6: "5", 7: "6", 8: "7", 9: "1'"
+                    };
+                    let label = SCALE_LABELS[pid] || pid.toString();
+                    if (pid !== 5) {
                         if (shift > 0) label += "♯";
                         if (shift < 0) label += "♭";
                     }
