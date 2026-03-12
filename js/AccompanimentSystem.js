@@ -29,6 +29,13 @@ class AccompanimentSystem {
         this.isArpeggio = options.isArpeggio || false;
         this.metronomeEnabled = options.metronomeEnabled || false;
         
+        // 旋律示範
+        this.melodyEnabled = options.melodyEnabled || false;
+        this.melodyVolume = options.melodyVolume || 0.4;
+
+        // 華爾滋伴奏模式（3/4 拍: 低音-和弦-和弦）
+        this.waltzMode = options.waltzMode || false;
+
         // 無障礙輔助
         this.voiceEnabled = options.voiceEnabled || false;
         this.voiceRate = options.voiceRate || 1.0;  // 語速 (0.5-2.0)
@@ -112,30 +119,60 @@ class AccompanimentSystem {
             ],
 
             // Amazing Grace (F Major, 3/4)
+            // 根據手寫簡譜版本，含裝飾音(654)
+            // 旋律格式: {n: MIDI音符, s: 起始拍(0-based), d: 持續拍數}
             'amazing_grace': [
-                // Intro
-                { c: 'F', b: 3, h: '[1] (Intro)', m: 0 },
-                // Phrase 1
-                { c: 'F', b: 3, h: '[4] ... [6][4]', m: 1 },
-                { c: 'C', b: 3, h: '[6] ... [5]', m: 2 },
-                { c: 'Bb', b: 3, h: '[4] ... [2]', m: 3 },
-                { c: 'F', b: 3, h: '[1]', m: 4 },
-                { c: 'F', b: 3, h: '[1] ... [1]', m: 5 },
-                // Phrase 2
-                { c: 'F', b: 3, h: '[4] ... [6][4]', m: 6 },
-                { c: 'C', b: 3, h: '[6] ... [5]', m: 7 },
-                { c: 'F', b: 3, h: '[9](High 1)', m: 8 },
-                { c: 'Dm', b: 3, h: '[6] ... [9]', m: 9 },
-                // Phrase 3
-                { c: 'F', b: 3, h: '[9] ... [6][4]', m: 10 },
-                { c: 'Bb', b: 3, h: '[4] ... [2]', m: 11 },
-                { c: 'F', b: 3, h: '[1] ... [2]', m: 12 },
-                { c: 'C', b: 3, h: '[1] ... [1]', m: 13 },
-                // Phrase 4
-                { c: 'F', b: 3, h: '[4] ... [6][4]', m: 14 },
-                { c: 'C', b: 3, h: '[6] ... [5]', m: 15 },
-                { c: 'F', b: 3, h: '[4]', m: 16 },
-                { c: 'F', b: 3, h: '(End)', m: 17 }
+                // Pickup (前2拍起拍): 1 = F4
+                { c: 'F', b: 2, h: '(起拍) [1]', m: 0,
+                  melody: [{n:65, s:1, d:1}] },
+                // M1: 4 . 654 — Bb4 附點 + D5-C5-Bb4 裝飾音
+                { c: 'F', b: 3, h: '[4] . [6][5][4]', m: 1,
+                  melody: [{n:70, s:0, d:1.5}, {n:74, s:1.5, d:0.5}, {n:72, s:2, d:0.5}, {n:70, s:2.5, d:0.5}] },
+                // M2: 6 - 5
+                { c: 'C', b: 3, h: '[6] - [5]', m: 2,
+                  melody: [{n:74, s:0, d:2}, {n:72, s:2, d:1}] },
+                // M3: 4 - 2
+                { c: 'Bb', b: 3, h: '[4] - [2]', m: 3,
+                  melody: [{n:70, s:0, d:2}, {n:67, s:2, d:1}] },
+                // M4: 1 - 1
+                { c: 'F', b: 3, h: '[1] - [1]', m: 4,
+                  melody: [{n:65, s:0, d:2}, {n:65, s:2, d:1}] },
+                // M5: 4 . 654 (同 M1)
+                { c: 'F', b: 3, h: '[4] . [6][5][4]', m: 5,
+                  melody: [{n:70, s:0, d:1.5}, {n:74, s:1.5, d:0.5}, {n:72, s:2, d:0.5}, {n:70, s:2.5, d:0.5}] },
+                // M6: 6 - 56 (D5 + C5-D5 八分)
+                { c: 'Dm', b: 3, h: '[6] - [5][6]', m: 6,
+                  melody: [{n:74, s:0, d:2}, {n:72, s:2, d:0.5}, {n:74, s:2.5, d:0.5}] },
+                // M7: ī - - (F5 全小節)
+                { c: 'F', b: 3, h: '[高1] ---', m: 7,
+                  melody: [{n:77, s:0, d:3}] },
+                // M8: ī - 6 (F5 + D5)
+                { c: 'F', b: 3, h: '[高1] - [6]', m: 8,
+                  melody: [{n:77, s:0, d:2}, {n:74, s:2, d:1}] },
+                // M9: ī . 654 (F5 + 裝飾音下行)
+                { c: 'F', b: 3, h: '[高1] . [6][5][4]', m: 9,
+                  melody: [{n:77, s:0, d:1.5}, {n:74, s:1.5, d:0.5}, {n:72, s:2, d:0.5}, {n:70, s:2.5, d:0.5}] },
+                // M10: 6 - 5
+                { c: 'Bb', b: 3, h: '[6] - [5]', m: 10,
+                  melody: [{n:74, s:0, d:2}, {n:72, s:2, d:1}] },
+                // M11: 4 - 2
+                { c: 'C', b: 3, h: '[4] - [2]', m: 11,
+                  melody: [{n:70, s:0, d:2}, {n:67, s:2, d:1}] },
+                // M12: 1 - 1
+                { c: 'F', b: 3, h: '[1] - [1]', m: 12,
+                  melody: [{n:65, s:0, d:2}, {n:65, s:2, d:1}] },
+                // M13: 4 . 654
+                { c: 'F', b: 3, h: '[4] . [6][5][4]', m: 13,
+                  melody: [{n:70, s:0, d:1.5}, {n:74, s:1.5, d:0.5}, {n:72, s:2, d:0.5}, {n:70, s:2.5, d:0.5}] },
+                // M14: 6 - 5
+                { c: 'C', b: 3, h: '[6] - [5]', m: 14,
+                  melody: [{n:74, s:0, d:2}, {n:72, s:2, d:1}] },
+                // M15: 4 - - (Bb4 結束音)
+                { c: 'F', b: 3, h: '[4] ---', m: 15,
+                  melody: [{n:70, s:0, d:3}] },
+                // 第二房結尾: 4 - 1
+                { c: 'F', b: 2, h: '(結尾) [4] - [1]', m: 16,
+                  melody: [{n:70, s:0, d:1}, {n:65, s:1, d:1}] }
             ],
 
             // 流行音樂常用進行
@@ -173,12 +210,12 @@ class AccompanimentSystem {
     _initSongSections() {
         this.SONG_SECTIONS = {
             'amazing_grace': [
-                { name: "全曲循環 (Full Song)", start: 0, end: 17 },
-                { name: "引子 (Intro)", start: 0, end: 0 },
-                { name: "第一句 (Phrase 1)", start: 1, end: 5 },
-                { name: "第二句 (Phrase 2)", start: 6, end: 9 },
-                { name: "第三句 (Phrase 3)", start: 10, end: 13 },
-                { name: "第四句 (Phrase 4)", start: 14, end: 17 }
+                { name: "全曲循環 (Full Song)", start: 0, end: 16 },
+                { name: "起拍 (Pickup)", start: 0, end: 0 },
+                { name: "第一句 (Phrase 1: Amazing grace...)", start: 1, end: 4 },
+                { name: "第二句 (Phrase 2: I once was lost...)", start: 5, end: 7 },
+                { name: "第三句 (Phrase 3: 'Twas grace...)", start: 8, end: 12 },
+                { name: "第四句 (Phrase 4: ...how sweet the sound)", start: 13, end: 16 }
             ]
         };
     }
@@ -302,6 +339,27 @@ class AccompanimentSystem {
     }
 
     /**
+     * 設定旋律示範
+     */
+    setMelody(enabled) {
+        this.melodyEnabled = enabled;
+    }
+
+    /**
+     * 設定旋律音量
+     */
+    setMelodyVolume(value) {
+        this.melodyVolume = Math.max(0, Math.min(1, value));
+    }
+
+    /**
+     * 設定華爾滋伴奏模式
+     */
+    setWaltzMode(enabled) {
+        this.waltzMode = enabled;
+    }
+
+    /**
      * 設定節拍器
      */
     setMetronome(enabled) {
@@ -387,6 +445,9 @@ class AccompanimentSystem {
             volume: this.volume,
             instrument: this.instrument,
             isArpeggio: this.isArpeggio,
+            waltzMode: this.waltzMode,
+            melodyEnabled: this.melodyEnabled,
+            melodyVolume: this.melodyVolume,
             metronomeEnabled: this.metronomeEnabled,
             currentProgressionKey: this.currentProgressionKey,
             currentSectionIndex: this.currentSectionIndex,
@@ -421,9 +482,18 @@ class AccompanimentSystem {
             this._speakMelodyHint(bar.c, bar.h, bar.m);
         }
 
-        // 播放和弦
+        // 播放和弦（華爾滋模式或一般模式）
         if (notes && notes.length > 0) {
-            this._playChordNotes(notes, durationSec, startTime);
+            if (this.waltzMode && bar.b === 3) {
+                this._playWaltzPattern(notes, startTime);
+            } else {
+                this._playChordNotes(notes, durationSec, startTime);
+            }
+        }
+
+        // 播放旋律示範
+        if (this.melodyEnabled && bar.melody) {
+            this._playMelodyNotes(bar.melody, startTime);
         }
 
         // 播放節拍器
@@ -461,6 +531,69 @@ class AccompanimentSystem {
                 this._playSimpleNote(midi, noteStart, noteDur);
             }
         });
+    }
+
+    /**
+     * 華爾滋伴奏模式 (3/4 拍: 低音-和弦-和弦)
+     * 模擬教會風格的鋼琴伴奏
+     */
+    _playWaltzPattern(midiNotes, startTime) {
+        const beatDur = 60 / this.bpm;
+        const bass = midiNotes[0] - 12; // 低一個八度作為低音
+        const upper = midiNotes.slice(1);  // 上方和弦音
+
+        // Beat 1: 低音（強拍）
+        if (this.instrument === 'piano') {
+            this._playPianoNote(bass, startTime, beatDur * 1.2);
+        } else {
+            this._playSimpleNote(bass, startTime, beatDur * 1.2);
+        }
+
+        // Beat 2: 和弦（弱拍）
+        const chordNotes = upper.length > 0 ? upper : midiNotes;
+        chordNotes.forEach(note => {
+            if (this.instrument === 'piano') {
+                this._playPianoNote(note, startTime + beatDur, beatDur * 0.9);
+            } else {
+                this._playSimpleNote(note, startTime + beatDur, beatDur * 0.9);
+            }
+        });
+
+        // Beat 3: 和弦（弱拍，稍輕）
+        chordNotes.forEach(note => {
+            const savedVol = this.volume;
+            this.volume *= 0.8; // 第三拍更輕
+            if (this.instrument === 'piano') {
+                this._playPianoNote(note, startTime + beatDur * 2, beatDur * 0.9);
+            } else {
+                this._playSimpleNote(note, startTime + beatDur * 2, beatDur * 0.9);
+            }
+            this.volume = savedVol;
+        });
+    }
+
+    /**
+     * 播放旋律音符（示範模式）
+     * @param {Array} melodyData - [{n: MIDI音符, s: 起始拍, d: 持續拍數}]
+     * @param {number} startTime - AudioContext 時間
+     */
+    _playMelodyNotes(melodyData, startTime) {
+        const beatDur = 60 / this.bpm;
+        const savedVol = this.volume;
+        this.volume = this.melodyVolume;
+
+        melodyData.forEach(note => {
+            const noteStart = startTime + note.s * beatDur;
+            const noteDur = note.d * beatDur;
+
+            if (this.instrument === 'piano') {
+                this._playPianoNote(note.n, noteStart, noteDur);
+            } else {
+                this._playSimpleNote(note.n, noteStart, noteDur);
+            }
+        });
+
+        this.volume = savedVol;
     }
 
     // 改進的鋼琴音色（更接近真實鋼琴）
