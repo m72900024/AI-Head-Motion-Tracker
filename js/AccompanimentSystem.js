@@ -524,9 +524,11 @@ class AccompanimentSystem {
                 noteDur = step * 1.2;
             }
 
-            // 改進的鋼琴音色（使用多振盪器）
+            // 根據音色選擇播放方式
             if (this.instrument === 'piano') {
                 this._playPianoNote(midi, noteStart, noteDur);
+            } else if (this.instrument === 'guitar') {
+                this._playGuitarNote(midi, noteStart, noteDur);
             } else {
                 this._playSimpleNote(midi, noteStart, noteDur);
             }
@@ -542,32 +544,27 @@ class AccompanimentSystem {
         const bass = midiNotes[0] - 12; // 低一個八度作為低音
         const upper = midiNotes.slice(1);  // 上方和弦音
 
+        // 根據音色選擇播放方法
+        const playNote = (midi, time, dur) => {
+            if (this.instrument === 'piano') this._playPianoNote(midi, time, dur);
+            else if (this.instrument === 'guitar') this._playGuitarNote(midi, time, dur);
+            else this._playSimpleNote(midi, time, dur);
+        };
+
         // Beat 1: 低音（強拍）
-        if (this.instrument === 'piano') {
-            this._playPianoNote(bass, startTime, beatDur * 1.2);
-        } else {
-            this._playSimpleNote(bass, startTime, beatDur * 1.2);
-        }
+        playNote(bass, startTime, beatDur * 1.2);
 
         // Beat 2: 和弦（弱拍）
         const chordNotes = upper.length > 0 ? upper : midiNotes;
         chordNotes.forEach(note => {
-            if (this.instrument === 'piano') {
-                this._playPianoNote(note, startTime + beatDur, beatDur * 0.9);
-            } else {
-                this._playSimpleNote(note, startTime + beatDur, beatDur * 0.9);
-            }
+            playNote(note, startTime + beatDur, beatDur * 0.9);
         });
 
         // Beat 3: 和弦（弱拍，稍輕）
         chordNotes.forEach(note => {
             const savedVol = this.volume;
-            this.volume *= 0.8; // 第三拍更輕
-            if (this.instrument === 'piano') {
-                this._playPianoNote(note, startTime + beatDur * 2, beatDur * 0.9);
-            } else {
-                this._playSimpleNote(note, startTime + beatDur * 2, beatDur * 0.9);
-            }
+            this.volume *= 0.8;
+            playNote(note, startTime + beatDur * 2, beatDur * 0.9);
             this.volume = savedVol;
         });
     }
@@ -588,6 +585,8 @@ class AccompanimentSystem {
 
             if (this.instrument === 'piano') {
                 this._playPianoNote(note.n, noteStart, noteDur);
+            } else if (this.instrument === 'guitar') {
+                this._playGuitarNote(note.n, noteStart, noteDur);
             } else {
                 this._playSimpleNote(note.n, noteStart, noteDur);
             }
@@ -666,6 +665,78 @@ class AccompanimentSystem {
         osc1.stop(startTime + duration + 0.5);
         osc2.stop(startTime + duration + 0.5);
         osc3.stop(startTime + duration + 0.5);
+    }
+
+    // 木吉他音色（Karplus-Strong 風格撥弦合成）
+    _playGuitarNote(midi, startTime, duration) {
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const masterGain = this.audioCtx.createGain();
+
+        // 吉他特性：銳利撥弦起音、自然衰減、溫暖音色
+        const attackTime = 0.003;
+        const peakTime = startTime + attackTime;
+
+        // 音量包絡：快速起音 → 指數衰減（模擬弦振動）
+        masterGain.gain.setValueAtTime(0, startTime);
+        masterGain.gain.linearRampToValueAtTime(this.volume * 0.45, peakTime);
+        masterGain.gain.exponentialRampToValueAtTime(this.volume * 0.15, peakTime + duration * 0.3);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        // 基音（三角波 — 溫暖的吉他基底）
+        const osc1 = this.audioCtx.createOscillator();
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(freq, startTime);
+
+        // 第二泛音（增加金屬弦感）
+        const osc2 = this.audioCtx.createOscillator();
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(freq, startTime);
+        osc2.detune.setValueAtTime(1, startTime);
+
+        // 第三泛音（明亮度，高八度微弱）
+        const osc3 = this.audioCtx.createOscillator();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(freq * 3, startTime);
+
+        // 音量比例
+        const gain1 = this.audioCtx.createGain();
+        const gain2 = this.audioCtx.createGain();
+        const gain3 = this.audioCtx.createGain();
+
+        gain1.gain.setValueAtTime(0.55, startTime);  // 基音為主
+        gain2.gain.setValueAtTime(0.15, startTime);   // 方波增加弦感
+        gain3.gain.setValueAtTime(0.08, startTime);   // 高泛音微量
+
+        // 高泛音快速衰減（模擬弦的高頻消散）
+        gain3.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.4);
+
+        // 低通濾波器（模擬木箱體共鳴 — 吉他比鋼琴暗）
+        const filter = this.audioCtx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(2500, startTime);
+        // 濾波器頻率也隨時間下降（弦振動越來越暗）
+        filter.frequency.exponentialRampToValueAtTime(800, startTime + duration);
+        filter.Q.setValueAtTime(0.7, startTime);
+
+        // 連接
+        osc1.connect(gain1);
+        osc2.connect(gain2);
+        osc3.connect(gain3);
+
+        gain1.connect(filter);
+        gain2.connect(filter);
+        gain3.connect(filter);
+
+        filter.connect(masterGain);
+        masterGain.connect(this.audioCtx.destination);
+
+        osc1.start(startTime);
+        osc2.start(startTime);
+        osc3.start(startTime);
+
+        osc1.stop(startTime + duration + 0.3);
+        osc2.stop(startTime + duration + 0.3);
+        osc3.stop(startTime + duration + 0.3);
     }
 
     // 簡單音色（其他樂器）
