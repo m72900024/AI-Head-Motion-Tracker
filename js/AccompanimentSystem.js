@@ -772,225 +772,255 @@ class AccompanimentSystem {
         this.volume = savedVol;
     }
 
-    // 改進的鋼琴音色（更接近真實鋼琴）
+    // 溫暖鋼琴音色（模擬真實鋼琴泛音結構 + 卷積式殘響）
     _playPianoNote(midi, startTime, duration) {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
-        const masterGain = this.audioCtx.createGain();
-        
-        // 鋼琴特性：快速起音、指數衰減、長尾音
-        const attackTime = 0.001;  // 極快起音（模擬敲擊）
-        const peakTime = startTime + attackTime;
-        const decayTime = 0.1;     // 初始衰減
-        const sustainLevel = 0.3;  // 持續音量
-        const releaseStart = startTime + duration - 0.2;
-        
-        // 音量包絡
+        const ctx = this.audioCtx;
+
+        // — 主增益（ADSR 包絡）—
+        const masterGain = ctx.createGain();
+        const attackEnd = startTime + 0.002;
+        const decayEnd = attackEnd + 0.15;
+        const sustainLevel = 0.25;
+        const releaseStart = startTime + duration - 0.3;
+
         masterGain.gain.setValueAtTime(0, startTime);
-        masterGain.gain.linearRampToValueAtTime(this.volume * 0.4, peakTime);
-        masterGain.gain.exponentialRampToValueAtTime(this.volume * sustainLevel, peakTime + decayTime);
-        masterGain.gain.setValueAtTime(this.volume * sustainLevel, releaseStart);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        
-        // 主振盪器（基音）
-        const osc1 = this.audioCtx.createOscillator();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(freq, startTime);
-        
-        // 第二振盪器（豐富音色，稍微 detune）
-        const osc2 = this.audioCtx.createOscillator();
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(freq, startTime);
-        osc2.detune.setValueAtTime(2, startTime); // 輕微失諧模擬琴弦共鳴
-        
-        // 第三振盪器（泛音，增加明亮度）
-        const osc3 = this.audioCtx.createOscillator();
-        osc3.type = 'sine';
-        osc3.frequency.setValueAtTime(freq * 2, startTime); // 第一泛音
-        
-        // 三個振盪器的音量比例
-        const gain1 = this.audioCtx.createGain();
-        const gain2 = this.audioCtx.createGain();
-        const gain3 = this.audioCtx.createGain();
-        
-        gain1.gain.setValueAtTime(0.5, startTime);  // 基音最響
-        gain2.gain.setValueAtTime(0.3, startTime);  // 中頻
-        gain3.gain.setValueAtTime(0.15, startTime); // 泛音（增加明亮度）
-        
-        // 低通濾波器（模擬音箱共鳴）
-        const filter = this.audioCtx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(4000, startTime);
-        filter.Q.setValueAtTime(1, startTime);
-        
-        // 連接音訊節點
-        osc1.connect(gain1);
-        osc2.connect(gain2);
-        osc3.connect(gain3);
-        
-        gain1.connect(filter);
-        gain2.connect(filter);
-        gain3.connect(filter);
-        
-        filter.connect(masterGain);
-        masterGain.connect(this.audioCtx.destination);
-        
-        // 啟動與停止
-        osc1.start(startTime);
-        osc2.start(startTime);
-        osc3.start(startTime);
-        
-        osc1.stop(startTime + duration + 0.5);
-        osc2.stop(startTime + duration + 0.5);
-        osc3.stop(startTime + duration + 0.5);
+        masterGain.gain.linearRampToValueAtTime(this.volume * 0.45, attackEnd);
+        masterGain.gain.exponentialRampToValueAtTime(
+            Math.max(this.volume * sustainLevel, 0.001), decayEnd);
+        masterGain.gain.setValueAtTime(
+            Math.max(this.volume * sustainLevel, 0.001), Math.max(releaseStart, decayEnd));
+        masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration + 0.4);
+
+        // — 泛音結構（模擬鋼琴弦振動）—
+        const harmonics = [
+            { ratio: 1,    gain: 0.45, type: 'sine' },      // 基音
+            { ratio: 1,    gain: 0.15, type: 'triangle', detune: 3 }, // 輕微失諧共鳴
+            { ratio: 2,    gain: 0.12, type: 'sine' },      // 第2泛音
+            { ratio: 3,    gain: 0.06, type: 'sine' },      // 第3泛音（溫暖感）
+            { ratio: 4,    gain: 0.03, type: 'sine' },      // 第4泛音（微量明亮）
+        ];
+
+        const oscillators = [];
+
+        // — 低通濾波：去除刺耳高頻 —
+        const lpFilter = ctx.createBiquadFilter();
+        lpFilter.type = 'lowpass';
+        // 高音區濾波更低，避免刺耳
+        const cutoff = Math.min(3500, 1800 + (69 - midi) * 30);
+        lpFilter.frequency.setValueAtTime(cutoff, startTime);
+        // 模擬鋼琴高頻隨時間衰減
+        lpFilter.frequency.exponentialRampToValueAtTime(
+            Math.max(cutoff * 0.4, 200), startTime + duration);
+        lpFilter.Q.setValueAtTime(0.7, startTime);
+
+        // — 簡易殘響（用延遲+回授模擬房間感）—
+        const reverbGain = ctx.createGain();
+        reverbGain.gain.setValueAtTime(0.08, startTime);
+        const delay1 = ctx.createDelay(0.1);
+        delay1.delayTime.setValueAtTime(0.03, startTime);
+        const delay2 = ctx.createDelay(0.1);
+        delay2.delayTime.setValueAtTime(0.07, startTime);
+        const reverbFilter = ctx.createBiquadFilter();
+        reverbFilter.type = 'lowpass';
+        reverbFilter.frequency.setValueAtTime(2000, startTime);
+
+        harmonics.forEach(h => {
+            const osc = ctx.createOscillator();
+            osc.type = h.type;
+            osc.frequency.setValueAtTime(freq * h.ratio, startTime);
+            if (h.detune) osc.detune.setValueAtTime(h.detune, startTime);
+
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(h.gain, startTime);
+            // 高泛音衰減更快
+            if (h.ratio >= 3) {
+                g.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.5);
+            }
+
+            osc.connect(g);
+            g.connect(lpFilter);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.6);
+            oscillators.push(osc);
+        });
+
+        // 主路徑
+        lpFilter.connect(masterGain);
+        masterGain.connect(ctx.destination);
+
+        // 殘響路徑
+        lpFilter.connect(reverbGain);
+        reverbGain.connect(delay1);
+        delay1.connect(reverbFilter);
+        reverbFilter.connect(delay2);
+        delay2.connect(masterGain);
     }
 
-    // 木吉他音色（Karplus-Strong 風格撥弦合成）
+    // 木吉他音色（溫暖撥弦 + 箱體共鳴模擬）
     _playGuitarNote(midi, startTime, duration) {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
-        const masterGain = this.audioCtx.createGain();
+        const ctx = this.audioCtx;
 
-        // 吉他特性：銳利撥弦起音、自然衰減、溫暖音色
-        const attackTime = 0.003;
-        const peakTime = startTime + attackTime;
-
-        // 音量包絡：快速起音 → 指數衰減（模擬弦振動）
+        // — 主增益包絡：快速撥弦起音 → 自然弦衰減 —
+        const masterGain = ctx.createGain();
+        const peakTime = startTime + 0.003;
         masterGain.gain.setValueAtTime(0, startTime);
-        masterGain.gain.linearRampToValueAtTime(this.volume * 0.45, peakTime);
-        masterGain.gain.exponentialRampToValueAtTime(this.volume * 0.15, peakTime + duration * 0.3);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        masterGain.gain.linearRampToValueAtTime(this.volume * 0.4, peakTime);
+        masterGain.gain.exponentialRampToValueAtTime(
+            Math.max(this.volume * 0.12, 0.001), peakTime + duration * 0.35);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration + 0.2);
 
-        // 基音（三角波 — 溫暖的吉他基底）
-        const osc1 = this.audioCtx.createOscillator();
-        osc1.type = 'triangle';
-        osc1.frequency.setValueAtTime(freq, startTime);
+        // — 泛音結構（木吉他偏暖，少高頻）—
+        const harmonics = [
+            { ratio: 1,    gain: 0.50, type: 'triangle' },           // 基音（溫暖）
+            { ratio: 1,    gain: 0.08, type: 'sine', detune: 2 },    // 微失諧共鳴
+            { ratio: 2,    gain: 0.15, type: 'sine' },               // 第2泛音
+            { ratio: 3,    gain: 0.05, type: 'sine' },               // 第3泛音（微量）
+        ];
 
-        // 第二泛音（增加金屬弦感）
-        const osc2 = this.audioCtx.createOscillator();
-        osc2.type = 'square';
-        osc2.frequency.setValueAtTime(freq, startTime);
-        osc2.detune.setValueAtTime(1, startTime);
+        // — 箱體共鳴濾波 —
+        const bodyFilter = ctx.createBiquadFilter();
+        bodyFilter.type = 'lowpass';
+        bodyFilter.frequency.setValueAtTime(2200, startTime);
+        bodyFilter.frequency.exponentialRampToValueAtTime(700, startTime + duration);
+        bodyFilter.Q.setValueAtTime(0.8, startTime);
 
-        // 第三泛音（明亮度，高八度微弱）
-        const osc3 = this.audioCtx.createOscillator();
-        osc3.type = 'sine';
-        osc3.frequency.setValueAtTime(freq * 3, startTime);
+        // — 箱體共鳴峰（模擬木箱 ~200Hz 共振）—
+        const bodyResonance = ctx.createBiquadFilter();
+        bodyResonance.type = 'peaking';
+        bodyResonance.frequency.setValueAtTime(200, startTime);
+        bodyResonance.gain.setValueAtTime(3, startTime);
+        bodyResonance.Q.setValueAtTime(2, startTime);
 
-        // 音量比例
-        const gain1 = this.audioCtx.createGain();
-        const gain2 = this.audioCtx.createGain();
-        const gain3 = this.audioCtx.createGain();
+        harmonics.forEach(h => {
+            const osc = ctx.createOscillator();
+            osc.type = h.type;
+            osc.frequency.setValueAtTime(freq * h.ratio, startTime);
+            if (h.detune) osc.detune.setValueAtTime(h.detune, startTime);
 
-        gain1.gain.setValueAtTime(0.55, startTime);  // 基音為主
-        gain2.gain.setValueAtTime(0.15, startTime);   // 方波增加弦感
-        gain3.gain.setValueAtTime(0.08, startTime);   // 高泛音微量
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(h.gain, startTime);
+            if (h.ratio >= 3) {
+                g.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.3);
+            }
 
-        // 高泛音快速衰減（模擬弦的高頻消散）
-        gain3.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.4);
+            osc.connect(g);
+            g.connect(bodyFilter);
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.3);
+        });
 
-        // 低通濾波器（模擬木箱體共鳴 — 吉他比鋼琴暗）
-        const filter = this.audioCtx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(2500, startTime);
-        // 濾波器頻率也隨時間下降（弦振動越來越暗）
-        filter.frequency.exponentialRampToValueAtTime(800, startTime + duration);
-        filter.Q.setValueAtTime(0.7, startTime);
-
-        // 連接
-        osc1.connect(gain1);
-        osc2.connect(gain2);
-        osc3.connect(gain3);
-
-        gain1.connect(filter);
-        gain2.connect(filter);
-        gain3.connect(filter);
-
-        filter.connect(masterGain);
-        masterGain.connect(this.audioCtx.destination);
-
-        osc1.start(startTime);
-        osc2.start(startTime);
-        osc3.start(startTime);
-
-        osc1.stop(startTime + duration + 0.3);
-        osc2.stop(startTime + duration + 0.3);
-        osc3.stop(startTime + duration + 0.3);
+        bodyFilter.connect(bodyResonance);
+        bodyResonance.connect(masterGain);
+        masterGain.connect(ctx.destination);
     }
 
-    // 簡單音色（其他樂器）
+    // 通用音色（strings / soft_pad / pluck）— 重新設計更溫暖自然
     _playSimpleNote(midi, startTime, duration) {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
-        const osc = this.audioCtx.createOscillator();
-        const gain = this.audioCtx.createGain();
-        const filter = this.audioCtx.createBiquadFilter();
+        const ctx = this.audioCtx;
 
-        // 樂器參數
-        const params = this._getInstrumentParams(duration);
+        const masterGain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
 
-        osc.type = params.type;
-        osc.frequency.setValueAtTime(freq, startTime);
+        if (this.instrument === 'strings') {
+            // — 弦樂：雙振盪器 + 慢起音 + 顫音（vibrato）—
+            const attack = 0.25;
+            const release = 0.35;
+            masterGain.gain.setValueAtTime(0, startTime);
+            masterGain.gain.linearRampToValueAtTime(this.volume * 0.22, startTime + attack);
+            masterGain.gain.setValueAtTime(this.volume * 0.22, startTime + duration - release);
+            masterGain.gain.linearRampToValueAtTime(0, startTime + duration);
 
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(params.filterFreq, startTime);
+            filter.frequency.setValueAtTime(1200, startTime);
+            filter.Q.setValueAtTime(0.5, startTime);
 
-        // 音量包絡
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(this.volume * 0.25, startTime + params.attack);
+            // 兩個 sine 波輕微失諧模擬弦樂群
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(freq, startTime);
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(freq, startTime);
+            osc2.detune.setValueAtTime(6, startTime);
 
-        if (this.instrument === 'pluck') {
-            gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            // Vibrato（用 LFO 調變頻率）
+            const lfo = ctx.createOscillator();
+            lfo.frequency.setValueAtTime(5, startTime); // 5Hz 顫音
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.setValueAtTime(3, startTime); // ±3 cents
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc1.detune);
+            lfoGain.connect(osc2.detune);
+
+            const g1 = ctx.createGain();
+            g1.gain.setValueAtTime(0.5, startTime);
+            const g2 = ctx.createGain();
+            g2.gain.setValueAtTime(0.35, startTime);
+
+            osc1.connect(g1); g1.connect(filter);
+            osc2.connect(g2); g2.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(ctx.destination);
+
+            lfo.start(startTime); lfo.stop(startTime + duration + 0.5);
+            osc1.start(startTime); osc1.stop(startTime + duration + 0.5);
+            osc2.start(startTime); osc2.stop(startTime + duration + 0.5);
+
+        } else if (this.instrument === 'pluck') {
+            // — 撥弦：快速起音 + 指數衰減 + 中低頻 —
+            masterGain.gain.setValueAtTime(0, startTime);
+            masterGain.gain.linearRampToValueAtTime(this.volume * 0.3, startTime + 0.005);
+            masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+            filter.frequency.setValueAtTime(2000, startTime);
+            filter.frequency.exponentialRampToValueAtTime(600, startTime + duration * 0.6);
+            filter.Q.setValueAtTime(1, startTime);
+
+            const osc = ctx.createOscillator();
+            osc.type = 'triangle'; // 比 square 柔和
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            osc.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.3);
+
         } else {
-            gain.gain.setValueAtTime(this.volume * 0.25, startTime + duration - params.release);
-            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+            // — Soft Pad：很慢起音 + 極柔和 + 雙層音色 —
+            const attack = 0.6;
+            const release = 0.6;
+            masterGain.gain.setValueAtTime(0, startTime);
+            masterGain.gain.linearRampToValueAtTime(this.volume * 0.18, startTime + attack);
+            masterGain.gain.setValueAtTime(
+                this.volume * 0.18, Math.max(startTime + attack, startTime + duration - release));
+            masterGain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            filter.frequency.setValueAtTime(800, startTime);
+            filter.Q.setValueAtTime(0.3, startTime);
+
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(freq, startTime);
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 2, startTime); // 高八度泛音
+            const g2 = ctx.createGain();
+            g2.gain.setValueAtTime(0.1, startTime); // 極微量泛音
+
+            osc1.connect(filter);
+            osc2.connect(g2); g2.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(ctx.destination);
+
+            osc1.start(startTime); osc1.stop(startTime + duration + 0.8);
+            osc2.start(startTime); osc2.stop(startTime + duration + 0.8);
         }
-
-        // 連接音訊節點
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.audioCtx.destination);
-
-        osc.start(startTime);
-        osc.stop(startTime + duration + 0.5);
-    }
-
-    _getInstrumentParams(noteDur) {
-        const params = {
-            type: 'triangle',
-            attack: 0.05,
-            release: 0.1,
-            filterFreq: 2000
-        };
-
-        switch (this.instrument) {
-            case 'piano':
-                // Piano 使用獨立的 _playPianoNote 方法
-                // 這裡的參數不會被使用，保留是為了向後兼容
-                params.type = 'sine';
-                params.attack = 0.001;
-                params.release = 0.2;
-                params.filterFreq = 4000;
-                break;
-            case 'strings':
-                params.type = 'sawtooth';
-                params.attack = 0.3;
-                params.release = 0.3;
-                params.filterFreq = 800;
-                break;
-            case 'pluck':
-                params.type = 'square';
-                params.attack = 0.01;
-                params.release = 0.2;
-                params.filterFreq = 2500;
-                break;
-            case 'soft_pad':
-            default:
-                params.type = 'triangle';
-                params.attack = 0.5;
-                params.release = 0.5;
-                params.filterFreq = 1000;
-                break;
-        }
-
-        return params;
     }
 
     _scheduleMetronome(beats, startTime) {

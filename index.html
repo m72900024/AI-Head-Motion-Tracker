@@ -389,6 +389,25 @@
                     <span id="chord-vol-val" class="text-[0.6rem] text-gray-300">30%</span>
                 </div>
                 <input type="range" id="chord-vol-slider" min="0" max="100" step="1" value="30" class="accent-cyan-500 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+
+                <!-- 旋律示範 -->
+                <div class="flex items-center gap-2 mt-2 bg-indigo-700/50 p-1 rounded border border-indigo-600">
+                    <input type="checkbox" id="melody-check" class="w-4 h-4 accent-indigo-500 cursor-pointer">
+                    <label for="melody-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🎵 旋律示範 (Melody Guide)</label>
+                </div>
+                <div id="melody-vol-controls" class="mt-1 hidden">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[0.6rem] text-gray-400">旋律音量:</label>
+                        <span id="melody-vol-val" class="text-[0.6rem] text-gray-300">40%</span>
+                    </div>
+                    <input type="range" id="melody-vol-slider" min="0" max="100" step="1" value="40" class="accent-indigo-500 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- 華爾滋伴奏模式 -->
+                <div class="flex items-center gap-2 mt-1 bg-amber-700/50 p-1 rounded border border-amber-600">
+                    <input type="checkbox" id="waltz-check" class="w-4 h-4 accent-amber-500 cursor-pointer">
+                    <label for="waltz-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🩰 華爾滋伴奏 (3/4 低音-和弦-和弦)</label>
+                </div>
             </div>
         </div>
     </div>
@@ -663,6 +682,33 @@
             else if (rate > 1.2) rateText = '快';
             
             voiceRateVal.innerText = rateText;
+        });
+
+        // 旋律示範控制
+        const melodyCheck = document.getElementById('melody-check');
+        const melodyVolControls = document.getElementById('melody-vol-controls');
+        const melodyVolSlider = document.getElementById('melody-vol-slider');
+        const melodyVolVal = document.getElementById('melody-vol-val');
+
+        melodyCheck.addEventListener('change', (e) => {
+            accompaniment.setMelody(e.target.checked);
+            if (e.target.checked) {
+                melodyVolControls.classList.remove('hidden');
+            } else {
+                melodyVolControls.classList.add('hidden');
+            }
+        });
+
+        melodyVolSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value) / 100;
+            melodyVolVal.innerText = `${e.target.value}%`;
+            accompaniment.setMelodyVolume(value);
+        });
+
+        // 華爾滋伴奏模式
+        const waltzCheck = document.getElementById('waltz-check');
+        waltzCheck.addEventListener('change', (e) => {
+            accompaniment.setWaltzMode(e.target.checked);
         });
 
         function flashMetronomeLight(isAccent) {
