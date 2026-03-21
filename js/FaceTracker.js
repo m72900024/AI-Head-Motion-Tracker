@@ -15,6 +15,11 @@ class FaceTracker {
         this.wasMouthOpen = false;
         this.lastDetectedId = null;
         this.isArmed = true;
+
+        // 連彈模式
+        this.repeatMode = false;
+        this.repeatIntervalId = null;
+        this.repeatCurrentId = null;
         
         // FPS Tracking
         this.lastTime = 0;
@@ -318,14 +323,15 @@ class FaceTracker {
                     this.triggerStateText.innerText = "就緒 (已回中)";
                     this.triggerStateText.style.color = "#00ffcc";
                     this.lastDetectedId = 5;
+                    this._stopRepeat();
                 } else if (detectedId !== this.lastDetectedId) {
                     const soundSettings = this.config.getSoundSettings ? this.config.getSoundSettings() : {};
-                    
+
                     if (this.isArmed || !soundSettings.returnToCenter) {
                         if (this.config.onPlayNote) {
                             this.config.onPlayNote(this.NOTE_FREQS[detectedId], detectedId);
                         }
-                        
+
                         if (soundSettings.returnToCenter) {
                             this.isArmed = false;
                             this.triggerStateText.innerText = "已觸發 (請回中間)";
@@ -333,7 +339,20 @@ class FaceTracker {
                         }
                     }
                     this.lastDetectedId = detectedId;
+
+                    // 連彈模式：進入新區域後啟動重複觸發
+                    if (this.repeatMode && detectedId !== 5) {
+                        this._startRepeat(detectedId);
+                    }
+                } else if (this.repeatMode && detectedId === this.lastDetectedId && detectedId !== 5) {
+                    // 連彈模式：停留在同一區域，確保計時器仍在跑
+                    if (!this.repeatIntervalId) {
+                        this._startRepeat(detectedId);
+                    }
                 }
+            } else {
+                // 離開所有區域，停止連彈
+                this._stopRepeat();
             }
             
             // Update Status Text
@@ -382,5 +401,49 @@ class FaceTracker {
 
     getRawPitch() {
         return this.rawPitch;
+    }
+
+    // ==================== 連彈模式 ====================
+
+    setRepeatMode(enabled) {
+        this.repeatMode = enabled;
+        if (!enabled) {
+            this._stopRepeat();
+        }
+    }
+
+    setRepeatBpm(bpm) {
+        this.repeatBpm = bpm;
+        // 如果正在連彈中，重新啟動以套用新速度
+        if (this.repeatIntervalId && this.repeatCurrentId) {
+            this._startRepeat(this.repeatCurrentId);
+        }
+    }
+
+    _startRepeat(pointId) {
+        this._stopRepeat();
+        this.repeatCurrentId = pointId;
+        // 使用伴奏 BPM 或預設 120
+        const bpm = this.repeatBpm || (this.config.getRepeatBpm ? this.config.getRepeatBpm() : 120);
+        const intervalMs = 60000 / bpm; // 每拍一次
+
+        this.repeatIntervalId = setInterval(() => {
+            // 確認仍在同一區域且連彈模式開啟
+            if (this.repeatMode && this.lastDetectedId === this.repeatCurrentId) {
+                if (this.config.onPlayNote) {
+                    this.config.onPlayNote(this.NOTE_FREQS[this.repeatCurrentId], this.repeatCurrentId);
+                }
+            } else {
+                this._stopRepeat();
+            }
+        }, intervalMs);
+    }
+
+    _stopRepeat() {
+        if (this.repeatIntervalId) {
+            clearInterval(this.repeatIntervalId);
+            this.repeatIntervalId = null;
+        }
+        this.repeatCurrentId = null;
     }
 }

@@ -408,6 +408,15 @@
                     <input type="checkbox" id="waltz-check" class="w-4 h-4 accent-amber-500 cursor-pointer">
                     <label for="waltz-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🩰 華爾滋伴奏 (3/4 低音-和弦-和弦)</label>
                 </div>
+
+                <!-- 連彈模式 -->
+                <div class="flex items-center gap-2 mt-2 bg-rose-700/50 p-1 rounded border border-rose-600">
+                    <input type="checkbox" id="repeat-check" class="w-4 h-4 accent-rose-500 cursor-pointer">
+                    <label for="repeat-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🔁 連彈模式 (頭停住自動重複)</label>
+                </div>
+                <div id="repeat-info" class="mt-1 hidden">
+                    <p class="text-[0.55rem] text-gray-500">停留在同一區域會跟隨 BPM 自動重複觸發音符</p>
+                </div>
             </div>
         </div>
     </div>
@@ -550,7 +559,8 @@
             onPlayNote: (freq, pointId) => playNote(freq, pointId, false),
             getSoundSettings: () => calibrationSystem.getSoundSettings(),
             getCenterOffset: () => calibrationSystem.getCenterOffset(),
-            getScalingFactors: () => calibrationSystem.getScalingFactors()
+            getScalingFactors: () => calibrationSystem.getScalingFactors(),
+            getRepeatBpm: () => accompaniment ? accompaniment.bpm : 120
         });
         
         // Initialize Accompaniment System
@@ -709,6 +719,23 @@
         const waltzCheck = document.getElementById('waltz-check');
         waltzCheck.addEventListener('change', (e) => {
             accompaniment.setWaltzMode(e.target.checked);
+        });
+
+        // 連彈模式
+        const repeatCheck = document.getElementById('repeat-check');
+        const repeatInfo = document.getElementById('repeat-info');
+        repeatCheck.addEventListener('change', (e) => {
+            faceTracker.setRepeatMode(e.target.checked);
+            if (e.target.checked) {
+                repeatInfo.classList.remove('hidden');
+            } else {
+                repeatInfo.classList.add('hidden');
+            }
+        });
+
+        // BPM 變更時同步連彈速度
+        bpmSlider.addEventListener('input', (e) => {
+            faceTracker.setRepeatBpm(parseInt(e.target.value));
         });
 
         function flashMetronomeLight(isAccent) {
