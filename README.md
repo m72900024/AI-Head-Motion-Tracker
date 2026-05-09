@@ -23,7 +23,7 @@
 - **快速校準模式**：圓形範圍偵測自動生成校正點
 - **即時音頻合成**：使用 Web Audio API 產生高品質聲音
 - **自訂音階**：每個位置可獨立設定半音階
-- **多種樂器音色**：鋼琴、8-Bit 電子音、長笛
+- **多種樂器音色**：真實取樣鋼琴（Salamander Yamaha C5）、合成鋼琴（離線備援）、8-Bit 電子音、長笛
 - **CSV 匯入匯出**：備份、分享、版本控制校正設定
 
 ### 🎵 自動伴奏系統
@@ -136,7 +136,8 @@ ID,Yaw,Pitch,Radius,SemitoneShift,BaseMidi,Name
 
 ### 前端技術
 - **MediaPipe Face Mesh**：臉部追蹤（Google AI）
-- **Web Audio API**：音頻合成
+- **Web Audio API**：音頻合成（8-Bit / 長笛 / 合成鋼琴備援）
+- **Tone.js + Salamander Piano**：真實取樣鋼琴（CDN：tonejs.github.io）
 - **Tailwind CSS**：介面設計
 - **Vanilla JavaScript**：純 JS，無框架依賴
 

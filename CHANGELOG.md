@@ -6,6 +6,24 @@
 
 ---
 
+## [1.2.0] - 2026-05-09 (真實鋼琴取樣)
+
+### Added - 新增
+- 整合 Tone.js + Salamander Piano（Yamaha C5 真實取樣，CC 授權）
+- 新增「🎛️ 合成鋼琴（離線備援）」樂器選項，保留原 oscillator 雙波合成器作為離線備援
+- 樣本載入狀態回饋（載入中／就緒／失敗訊息）
+
+### Changed - 變更
+- 「🎹 鋼琴」選項改為走真實取樣，第一次點擊「開始」按鈕時背景預載樣本
+- 真實取樣未就緒（載入中／載入失敗／瀏覽器無 Tone.js）時自動降級到合成器，永遠不會無聲
+
+### Technical - 技術細節
+- Tone.Sampler 涵蓋 A1、C2-C6、D#/F#（共 18 個樣本，總約 2-3 MB），中間音以 pitch shift 補齊
+- 載入觸發點：start button → `Tone.start()` → 預載；playNote() 第一次遇到 piano 也會觸發
+- 音量透過 `Tone.gainToDb(vol)` 對應到 sampler 的 dB，與原合成器音量條同步
+
+---
+
 ## [1.1.0] - 2026-05-09 (清理死碼)
 
 ### Removed - 刪除

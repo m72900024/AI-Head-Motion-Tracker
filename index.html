@@ -14,6 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js — 真實鋼琴取樣（Salamander Yamaha C5）-->
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.min.js"></script>
 
     <!-- 外部樣式表 -->
     <link rel="stylesheet" href="css/style.css">
@@ -247,7 +249,8 @@
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-300">樂器:</label>
                     <select id="instrument-select" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
-                        <option value="piano">🎹 模擬鋼琴</option>
+                        <option value="piano">🎹 鋼琴（真實取樣）</option>
+                        <option value="synth">🎛️ 合成鋼琴（離線備援）</option>
                         <option value="8bit">👾 8-Bit 電子音</option>
                         <option value="flute">🌬️ 長笛</option>
                     </select>
@@ -431,6 +434,46 @@
         let isSoundEnabled = false;
         let isDebugVisible = true;
         let isZonesVisible = true;
+
+        // 真實鋼琴取樣（Tone.js Sampler + Salamander Yamaha C5）
+        let pianoSampler = null;
+        let pianoLoaded = false;
+        let pianoLoading = false;
+        let pianoLoadFailed = false;
+
+        async function initRealPiano() {
+            if (pianoSampler || pianoLoading || pianoLoadFailed) return;
+            if (typeof Tone === 'undefined') {
+                pianoLoadFailed = true;
+                console.warn('Tone.js 未載入，真鋼琴停用，使用合成器備援。');
+                return;
+            }
+            pianoLoading = true;
+            if (uiController) uiController.showFeedback('🎹 載入鋼琴音色…');
+            try {
+                await Tone.start();
+                pianoSampler = new Tone.Sampler({
+                    urls: {
+                        A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+                        A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+                        A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+                        A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+                        A5: 'A5.mp3', C6: 'C6.mp3'
+                    },
+                    baseUrl: 'https://tonejs.github.io/audio/salamander/',
+                    release: 1.2
+                }).toDestination();
+                await Tone.loaded();
+                pianoLoaded = true;
+                pianoLoading = false;
+                if (uiController) uiController.showFeedback('✅ 鋼琴音色就緒');
+            } catch (err) {
+                pianoLoadFailed = true;
+                pianoLoading = false;
+                console.error('真鋼琴載入失敗：', err);
+                if (uiController) uiController.showFeedback('⚠️ 真鋼琴載入失敗，使用合成備援');
+            }
+        }
         
         // 模組實例
         let calibrationSystem = null;
@@ -460,6 +503,7 @@
             soundBtn.classList.add('active');
             startScreen.style.opacity = '0';
             setTimeout(() => { startScreen.style.display = 'none'; }, 500);
+            initRealPiano();  // 背景預載鋼琴取樣，不 await
             playNote(523.25, null, true);
             
             if (showGuideCheck.checked) {
@@ -786,17 +830,31 @@
             
             if (finalFreq === 0) return;
 
-            const now = audioCtx.currentTime;
             const soundSettings = calibrationSystem.getSoundSettings();
             const vol = soundSettings.volume;
             const dur = soundSettings.duration;
             const inst = soundSettings.instrument;
 
+            // 真實鋼琴取樣（piano）— 載完才走，否則自動降級到合成
+            if (inst === 'piano' && pianoLoaded && pianoSampler) {
+                pianoSampler.volume.value = Tone.gainToDb(Math.max(0.001, vol));
+                pianoSampler.triggerAttackRelease(finalFreq, dur);
+                if (!pianoLoading && !pianoLoadFailed) initRealPiano();
+                return;
+            }
+
+            // 還沒就緒時，背景觸發載入（不阻塞當下發音）
+            if (inst === 'piano' && !pianoLoaded && !pianoLoading && !pianoLoadFailed) {
+                initRealPiano();
+            }
+
+            const now = audioCtx.currentTime;
             const gainNode = audioCtx.createGain();
             gainNode.connect(audioCtx.destination);
 
             let osc1, osc2;
-            if (inst === 'piano') {
+            // piano 沒載完時用合成備援；synth 為使用者明確選的離線合成
+            if (inst === 'piano' || inst === 'synth') {
                 osc1 = audioCtx.createOscillator();
                 osc1.type = 'sine'; osc1.frequency.setValueAtTime(finalFreq, now);
                 osc2 = audioCtx.createOscillator();
