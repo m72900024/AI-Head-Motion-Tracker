@@ -140,57 +140,49 @@ ID,Yaw,Pitch,Radius,SemitoneShift,BaseMidi,Name
 - **Tailwind CSS**：介面設計
 - **Vanilla JavaScript**：純 JS，無框架依賴
 
-### 模組化架構（Phase 2）
-
-經過兩階段重構，已完成完整模組化架構：
+### 模組化架構
 
 ```
-index.html (781 行)              整合層
+index.html (954L)                整合層 + 音頻合成（playNote）
   │
   ├─ css/
   │   └─ style.css               樣式模組 (191L)
   │
   └─ js/
       ├─ config.js               全域配置 (139L)
-      ├─ AudioEngine.js          音頻引擎 (205L)
-      ├─ AccompanimentSystem.js  伴奏系統 (563L)
-      ├─ CalibrationSystem.js    校正系統 (628L)
-      ├─ FaceTracker.js          臉部追蹤 (372L)
-      └─ UIController.js         UI 控制器 (423L)
+      ├─ CalibrationSystem.js    校正系統 (749L)
+      ├─ FaceTracker.js          臉部追蹤 + 連彈 (449L)
+      ├─ UIController.js         UI 控制器 (423L)
+      └─ AccompanimentSystem.js  伴奏系統 (1181L)
 ```
-
-**重構成果**：
-- ✅ 程式碼精簡 **56%**（1,781 → 781 行）
-- ✅ 7 個獨立模組，職責清晰
-- ✅ Debug 效率提升 **~5 倍**（30-60 分鐘 → 5-15 分鐘）
 
 ### 模組職責說明
 
 | 模組 | 職責 | 行數 |
 |------|------|------|
-| **CalibrationSystem.js** | 校正點錄製、範圍偵測、CSV 匯入匯出、設定持久化 | 628 |
-| **FaceTracker.js** | MediaPipe 整合、座標追蹤、觸發偵測 | 372 |
+| **CalibrationSystem.js** | 校正點錄製、範圍偵測、CSV 匯入匯出、設定持久化、靈敏度縮放 | 749 |
+| **FaceTracker.js** | MediaPipe 整合、座標追蹤、觸發偵測、嘴部八度切換、連彈模式 | 449 |
 | **UIController.js** | 面板切換、拖拽、滾輪控制、回饋顯示 | 423 |
-| **AccompanimentSystem.js** | 和弦進行、節拍器、琶音、段落循環 | 563 |
-| **AudioEngine.js** | Web Audio API、音色合成、音量控制 | 205 |
+| **AccompanimentSystem.js** | 和弦進行、節拍器、琶音、段落循環、旋律示範、語音報讀、華爾滋 | 1181 |
 | **config.js** | 音符定義、頻率表、全域常數 | 139 |
 | **style.css** | UI 樣式、動畫、響應式設計 | 191 |
+
+> 音頻合成（playNote、樂器音色）目前實作在 `index.html` 內聯腳本中。
 
 ### 檔案結構
 ```
 AI-Head-Motion-Tracker/
-├── index.html              # 主程式整合層 (781L, 39KB)
+├── index.html              # 主程式整合層 + 音頻合成
 ├── css/
-│   └── style.css          # 樣式模組 (191L)
+│   └── style.css
 ├── js/
-│   ├── config.js          # 全域配置 (139L)
-│   ├── AudioEngine.js     # 音頻引擎 (205L)
-│   ├── AccompanimentSystem.js  # 伴奏系統 (563L)
-│   ├── CalibrationSystem.js    # 校正系統 (628L)
-│   ├── FaceTracker.js     # 臉部追蹤 (372L)
-│   └── UIController.js    # UI 控制器 (423L)
-├── README.md              # 專案說明
-└── PHASE2-REPORT.md       # 重構報告
+│   ├── config.js
+│   ├── CalibrationSystem.js
+│   ├── FaceTracker.js
+│   ├── UIController.js
+│   └── AccompanimentSystem.js
+├── README.md
+└── CHANGELOG.md
 ```
 
 ## 🎨 特色亮點
@@ -209,16 +201,16 @@ AI-Head-Motion-Tracker/
 
 需要修改特定功能？直接找對應模組：
 
-| 需求 | 修改模組 | 位置 |
-|------|---------|------|
-| 修改音色/音量 | `AudioEngine.js` | js/AudioEngine.js |
-| 新增和弦進行 | `AccompanimentSystem.js` | js/AccompanimentSystem.js |
-| 調整校正邏輯 | `CalibrationSystem.js` | js/CalibrationSystem.js |
-| 修改 CSV 格式 | `CalibrationSystem.js` | js/CalibrationSystem.js (exportCSV/parseCSV) |
-| 優化臉部追蹤 | `FaceTracker.js` | js/FaceTracker.js |
-| 修改 UI 互動 | `UIController.js` | js/UIController.js |
-| 調整樣式 | `style.css` | css/style.css |
-| 修改音符定義 | `config.js` | js/config.js |
+| 需求 | 修改位置 |
+|------|---------|
+| 修改音色/音量（playNote） | `index.html` 內聯 `<script>` 段 |
+| 新增和弦進行 | `js/AccompanimentSystem.js` |
+| 調整校正邏輯 | `js/CalibrationSystem.js` |
+| 修改 CSV 格式 | `js/CalibrationSystem.js` (exportCSV/parseCSV) |
+| 優化臉部追蹤 | `js/FaceTracker.js` |
+| 修改 UI 互動 | `js/UIController.js` |
+| 調整樣式 | `css/style.css` |
+| 修改音符定義 | `js/config.js` |
 
 ### 模組 API 範例
 
@@ -305,38 +297,11 @@ calibrationSystem.parseCSV(text); // 解析 CSV 文字內容
 
 ## 📦 版本資訊
 
-### 當前版本：v1.0.0（Phase 2 模組化完成）
-
 **線上網址**：https://m72900024.github.io/AI-Head-Motion-Tracker/
 
 **狀態**：✅ **穩定運作，實測通過**
 
-**完成項目**：
-- ✅ Phase 1 重構（2026-02-13）：CSS + 基礎模組提取
-- ✅ Phase 2 重構（2026-02-14）：核心系統模組化
-- ✅ 程式碼精簡 56%（1,781 → 781 行）
-- ✅ 7 個獨立模組，職責清晰
-- ✅ 維護效率提升 ~5 倍
-
-### 重構歷程
-
-| 階段 | 日期 | 成果 | 行數變化 |
-|------|------|------|---------|
-| **原始版本** | - | 單檔巨石架構 | 1,781 行 |
-| **Phase 1** | 2026-02-13 | CSS + 基礎模組 | 1,591 行 (-11%) |
-| **Phase 2** | 2026-02-14 | 核心系統模組化 | **781 行 (-56%)** ✅ |
-
-### 模組清單
-
-| 模組 | 版本 | 功能 | 狀態 |
-|------|------|------|------|
-| CalibrationSystem | 1.0 | 校正系統 | ✅ 穩定 |
-| FaceTracker | 1.0 | 臉部追蹤 | ✅ 穩定 |
-| UIController | 1.0 | UI 控制 | ✅ 穩定 |
-| AccompanimentSystem | 1.0 | 伴奏系統 | ✅ 穩定 |
-| AudioEngine | 1.0 | 音頻引擎 | ✅ 穩定 |
-
-詳細重構報告請見 [PHASE2-REPORT.md](PHASE2-REPORT.md)
+詳細變更見 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 📄 授權
 

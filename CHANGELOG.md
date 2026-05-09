@@ -6,53 +6,22 @@
 
 ---
 
-## [Unreleased] - 進行中
+## [1.1.0] - 2026-05-09 (清理死碼)
 
-### Added - 新增
-- CalibrationSystem.js - 校準系統模組 (309 行)
-- FaceTracker.js - 臉部追蹤模組 (265 行)
-- main.js - 模組整合層 (274 行)
-- **index-v2.html** - v2 版本（模組化架構）
+### Removed - 刪除
+- `index-v2.html` — v2 開發版，自 2026-02-14 建立後零 commit，落後穩定版多項功能（melody / voice / waltz / repeat / scaling）
+- `index.html.phase1.bak` / `index.html.phase2.old` — 重構期間的歷史備份
+- `js/main.js` — 僅 v2 使用的整合層，index.html 沒載入
+- `js/AudioEngine.js` — 已被 `<script>` 引入但從未實例化；音頻合成實作在 index.html 內聯的 `playNote()`
+- `PHASE2-REPORT.md` — 重構歷史報告，內容已併入 README/CHANGELOG
 
 ### Changed - 變更
-- 採用雙版本並行策略：
-  - `index.html` - 穩定版（個案使用，v0.2.0）
-  - `index-v2.html` - 開發版（完整模組化，進行中）
-
-### Status - 狀態
-**雙版本開發模式**
-
-**穩定版 (index.html)**：
-- ✅ 已部署上線
-- ✅ 個案可用
-- ✅ Debug 效率 +40%
-- 📌 保持穩定，不做大改動
-
-**開發版 (index-v2.html)**：
-- 🚧 整合新模組中
-- 🎯 目標：index.html 從 1,591 → 900 行
-- ⏱️ 預計時間：1.5-2 小時
-- 🔬 完成後進行完整測試
+- index.html `<head>` 移除 `AudioEngine.js` 的 `<script>` 引用
+- README 模組清單與行數更新到當下狀態（AccompanimentSystem 已成長到 1181 行）
+- README 移除「7 模組／Phase 2 重構成果」段落，改為實際 6 檔（5 JS + 1 CSS）
 
 ### Decision - 決策記錄
-**為什麼採用雙版本？**
-
-**問題**：完整整合需要大幅修改 index.html（500+ 行），有風險
-
-**選項評估**：
-- ❌ 選項 A：直接整合（風險高，影響個案使用）
-- ✅ 選項 B：雙版本並行（風險低，可對比測試）
-- ❌ 選項 C：維持現狀（無法驗證新架構）
-
-**決定**：選項 B - 建立 v2 版本
-
-**理由**：
-1. 保護穩定版（個案使用不受影響）
-2. 降低風險（v2 有問題不影響線上）
-3. 對比測試（可驗證新架構優勢）
-4. 漸進升級（v2 穩定後再替換）
-
-**時間**：2026-02-14 09:43
+**雙版本策略 (index.html / index-v2.html) 正式放棄。** v1 持續迭代了 10+ 次 commit，v2 沒人動，落後嚴重。維持雙版本只增加維護成本，沒有降低風險的實質效果。
 
 ---
 
