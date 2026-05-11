@@ -96,7 +96,8 @@
             </div>
         </div>
 
-        <!-- 獨立的伴奏按鈕 -->
+        <!-- 三選一面板按鈕（彈奏 / 伴奏 / 校正） -->
+        <button class="btn-base play-btn" onclick="togglePlayPanel()">🎹 彈奏設定</button>
         <button class="btn-base accomp-btn" onclick="toggleAccompPanel()">🎹 伴奏設定</button>
         <button class="btn-base toggle-btn" onclick="toggleCalibration()">⚙️ 校正與設定</button>
         
@@ -306,6 +307,12 @@
                  <button onclick="importCSV()" class="flex-1 bg-cyan-900/50 hover:bg-cyan-900 text-cyan-200 py-1 px-2 rounded text-xs border border-cyan-800">📥 匯入 CSV</button>
             </div>
             <button onclick="resetCalibration()" class="mt-2 w-full bg-red-900/50 hover:bg-red-900 text-red-200 py-2 rounded text-xs border border-red-800">🗑️ 重置當前設定</button>
+        </div>
+
+        <!-- 獨立的彈奏面板（頭控主旋律設定）-->
+        <div id="play-panel" class="side-panel">
+            <h3 class="text-lg font-bold mb-2 border-b border-gray-700 pb-2">🎹 彈奏設定</h3>
+            <!-- 內容將由 Task 2、Task 3 從其他面板搬入 -->
         </div>
 
         <!-- 獨立的伴奏面板 -->
@@ -908,6 +915,10 @@
 
         function toggleAccompPanel() {
             uiController.toggleAccompPanel();
+        }
+
+        function togglePlayPanel() {
+            uiController.togglePlayPanel();
         }
 
         function toggleDebug() {

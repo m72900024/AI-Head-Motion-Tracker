@@ -15,6 +15,7 @@ class UIController {
         // DOM Elements
         this.calibPanel = document.getElementById('calib-panel');
         this.accompPanel = document.getElementById('accomp-panel');
+        this.playPanel = document.getElementById('play-panel');
         this.faceGuide = document.getElementById('face-guide');
         this.faceGuideScale = 1.0;
         this.statusText = document.getElementById('status-text');
@@ -65,15 +66,24 @@ class UIController {
         });
     }
 
-    // Panel Toggle
+    // Panel Toggle (三選一互斥：開啟任一面板會自動關掉其他兩個)
     toggleCalibration() {
         this.accompPanel.classList.remove('open');
+        if (this.playPanel) this.playPanel.classList.remove('open');
         this.calibPanel.classList.toggle('open');
     }
 
     toggleAccompPanel() {
         this.calibPanel.classList.remove('open');
+        if (this.playPanel) this.playPanel.classList.remove('open');
         this.accompPanel.classList.toggle('open');
+    }
+
+    togglePlayPanel() {
+        if (!this.playPanel) return;
+        this.calibPanel.classList.remove('open');
+        this.accompPanel.classList.remove('open');
+        this.playPanel.classList.toggle('open');
     }
 
     // Sound Toggle
