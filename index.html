@@ -96,6 +96,14 @@
             </div>
         </div>
 
+        <!-- 字體三段切換器（協助者用，頂部置中）-->
+        <div class="font-size-toggle" role="group" aria-label="字體大小">
+            <span class="font-size-label">字體</span>
+            <button class="font-size-btn size-s active" onclick="setFontSize('small')" title="小">A</button>
+            <button class="font-size-btn size-m" onclick="setFontSize('medium')" title="中">A</button>
+            <button class="font-size-btn size-l" onclick="setFontSize('large')" title="大">A</button>
+        </div>
+
         <!-- 三選一面板按鈕（彈奏 / 伴奏 / 校正） -->
         <button class="btn-base play-btn" onclick="togglePlayPanel()">🎤 彈奏設定</button>
         <button class="btn-base accomp-btn" onclick="toggleAccompPanel()">🎼 伴奏設定</button>
@@ -924,6 +932,25 @@
         function togglePlayPanel() {
             uiController.togglePlayPanel();
         }
+
+        // 字體大小三段切換（協助者用，馥華視障無感）
+        function setFontSize(size) {
+            if (!['small', 'medium', 'large'].includes(size)) return;
+            document.body.classList.remove('font-small', 'font-medium', 'font-large');
+            document.body.classList.add(`font-${size}`);
+            document.querySelectorAll('.font-size-btn').forEach(b => b.classList.remove('active'));
+            const sizeChar = size[0]; // s / m / l
+            const activeBtn = document.querySelector(`.font-size-btn.size-${sizeChar}`);
+            if (activeBtn) activeBtn.classList.add('active');
+            try { localStorage.setItem('head-tracker-font-size', size); } catch (e) {}
+        }
+        // 啟動時還原 localStorage 偏好（預設 small = 現況不動）
+        (function initFontSize() {
+            try {
+                const saved = localStorage.getItem('head-tracker-font-size');
+                if (saved) setFontSize(saved);
+            } catch (e) {}
+        })();
 
         function toggleDebug() {
             uiController.toggleDebug();
