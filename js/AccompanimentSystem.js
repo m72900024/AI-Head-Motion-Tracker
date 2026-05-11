@@ -50,6 +50,11 @@ class AccompanimentSystem {
         this.onMetronomeBeat = options.onMetronomeBeat || null;
         this.onStateChange = options.onStateChange || null;
 
+        // 音訊主幹（master gain + 多通道 stereo panning，audio-first 視障設計）
+        this.bus = null;
+        this.duckLevel = options.duckLevel || 0.35;
+        this.duckRampSec = 0.05;
+
         // 初始化和弦與進行
         this._initChords();
         this._initProgressions();
@@ -409,6 +414,7 @@ class AccompanimentSystem {
         if (this.audioCtx.state === 'suspended') {
             this.audioCtx.resume();
         }
+        this._buildAudioBus();
         return this.audioCtx;
     }
 
@@ -417,6 +423,7 @@ class AccompanimentSystem {
      */
     setAudioContext(ctx) {
         this.audioCtx = ctx;
+        this._buildAudioBus();
     }
 
     /**
@@ -634,6 +641,48 @@ class AccompanimentSystem {
 
     // ==================== 私有方法 ====================
 
+    /**
+     * 建立 audio graph 主幹（一次性）
+     * 結構：sources → channel panners → masterGain → ctx.destination
+     * 通道分布（audio-first 視障空間定位）：
+     *   bass:      pan -0.4（明顯左聲道，低頻空間錨點）
+     *   chord:     pan  0   （中央，主和聲層）
+     *   melody:    pan  0   （中央，由 timbre 區分主旋律 vs 和聲）
+     *   metronome: pan +0.4（右聲道，輕度時間感輔助）
+     */
+    _buildAudioBus() {
+        if (this.bus || !this.audioCtx) return;
+        const ctx = this.audioCtx;
+
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(1.0, ctx.currentTime);
+
+        const channels = {};
+        const channelPan = { bass: -0.4, chord: 0, melody: 0, metronome: 0.4 };
+        for (const [name, pan] of Object.entries(channelPan)) {
+            const panner = ctx.createStereoPanner();
+            panner.pan.setValueAtTime(pan, ctx.currentTime);
+            panner.connect(master);
+            channels[name] = panner;
+        }
+
+        master.connect(ctx.destination);
+
+        this.bus = { master, ...channels };
+    }
+
+    /**
+     * TTS 報讀時把音樂壓低，避免互相蓋台
+     * @param {boolean} on - true=壓低音樂（duck），false=恢復
+     */
+    _duckMusic(on) {
+        if (!this.bus || !this.audioCtx) return;
+        const now = this.audioCtx.currentTime;
+        const target = on ? this.duckLevel : 1.0;
+        this.bus.master.gain.cancelScheduledValues(now);
+        this.bus.master.gain.linearRampToValueAtTime(target, now + this.duckRampSec);
+    }
+
     _playNextBar(prog) {
         if (!this.isPlaying) return;
 
@@ -690,6 +739,7 @@ class AccompanimentSystem {
     }
 
     _playChordNotes(midiNotes, duration, startTime) {
+        const dest = this.bus ? this.bus.chord : null;
         midiNotes.forEach((midi, index) => {
             let noteStart = startTime;
             let noteDur = duration;
@@ -703,11 +753,11 @@ class AccompanimentSystem {
 
             // 根據音色選擇播放方式
             if (this.instrument === 'piano') {
-                this._playPianoNote(midi, noteStart, noteDur);
+                this._playPianoNote(midi, noteStart, noteDur, dest);
             } else if (this.instrument === 'guitar') {
-                this._playGuitarNote(midi, noteStart, noteDur);
+                this._playGuitarNote(midi, noteStart, noteDur, dest);
             } else {
-                this._playSimpleNote(midi, noteStart, noteDur);
+                this._playSimpleNote(midi, noteStart, noteDur, dest);
             }
         });
     }
@@ -720,28 +770,30 @@ class AccompanimentSystem {
         const beatDur = 60 / this.bpm;
         const bass = midiNotes[0] - 12; // 低一個八度作為低音
         const upper = midiNotes.slice(1);  // 上方和弦音
+        const bassDest = this.bus ? this.bus.bass : null;
+        const chordDest = this.bus ? this.bus.chord : null;
 
         // 根據音色選擇播放方法
-        const playNote = (midi, time, dur) => {
-            if (this.instrument === 'piano') this._playPianoNote(midi, time, dur);
-            else if (this.instrument === 'guitar') this._playGuitarNote(midi, time, dur);
-            else this._playSimpleNote(midi, time, dur);
+        const playNote = (midi, time, dur, dest) => {
+            if (this.instrument === 'piano') this._playPianoNote(midi, time, dur, dest);
+            else if (this.instrument === 'guitar') this._playGuitarNote(midi, time, dur, dest);
+            else this._playSimpleNote(midi, time, dur, dest);
         };
 
-        // Beat 1: 低音（強拍）
-        playNote(bass, startTime, beatDur * 1.2);
+        // Beat 1: 低音（強拍）→ bass channel（左聲道空間錨點）
+        playNote(bass, startTime, beatDur * 1.2, bassDest);
 
-        // Beat 2: 和弦（弱拍）
+        // Beat 2: 和弦（弱拍）→ chord channel（中央）
         const chordNotes = upper.length > 0 ? upper : midiNotes;
         chordNotes.forEach(note => {
-            playNote(note, startTime + beatDur, beatDur * 0.9);
+            playNote(note, startTime + beatDur, beatDur * 0.9, chordDest);
         });
 
-        // Beat 3: 和弦（弱拍，稍輕）
+        // Beat 3: 和弦（弱拍，稍輕）→ chord channel
         chordNotes.forEach(note => {
             const savedVol = this.volume;
             this.volume *= 0.8;
-            playNote(note, startTime + beatDur * 2, beatDur * 0.9);
+            playNote(note, startTime + beatDur * 2, beatDur * 0.9, chordDest);
             this.volume = savedVol;
         });
     }
@@ -755,17 +807,18 @@ class AccompanimentSystem {
         const beatDur = 60 / this.bpm;
         const savedVol = this.volume;
         this.volume = this.melodyVolume;
+        const dest = this.bus ? this.bus.melody : null;
 
         melodyData.forEach(note => {
             const noteStart = startTime + note.s * beatDur;
             const noteDur = note.d * beatDur;
 
             if (this.instrument === 'piano') {
-                this._playPianoNote(note.n, noteStart, noteDur);
+                this._playPianoNote(note.n, noteStart, noteDur, dest);
             } else if (this.instrument === 'guitar') {
-                this._playGuitarNote(note.n, noteStart, noteDur);
+                this._playGuitarNote(note.n, noteStart, noteDur, dest);
             } else {
-                this._playSimpleNote(note.n, noteStart, noteDur);
+                this._playSimpleNote(note.n, noteStart, noteDur, dest);
             }
         });
 
@@ -773,7 +826,7 @@ class AccompanimentSystem {
     }
 
     // 溫暖鋼琴音色（模擬真實鋼琴泛音結構 + 卷積式殘響）
-    _playPianoNote(midi, startTime, duration) {
+    _playPianoNote(midi, startTime, duration, dest = null) {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
         const ctx = this.audioCtx;
 
@@ -848,7 +901,7 @@ class AccompanimentSystem {
 
         // 主路徑
         lpFilter.connect(masterGain);
-        masterGain.connect(ctx.destination);
+        masterGain.connect(dest || ctx.destination);
 
         // 殘響路徑
         lpFilter.connect(reverbGain);
@@ -859,7 +912,7 @@ class AccompanimentSystem {
     }
 
     // 木吉他音色（溫暖撥弦 + 箱體共鳴模擬）
-    _playGuitarNote(midi, startTime, duration) {
+    _playGuitarNote(midi, startTime, duration, dest = null) {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
         const ctx = this.audioCtx;
 
@@ -914,11 +967,11 @@ class AccompanimentSystem {
 
         bodyFilter.connect(bodyResonance);
         bodyResonance.connect(masterGain);
-        masterGain.connect(ctx.destination);
+        masterGain.connect(dest || ctx.destination);
     }
 
     // 通用音色（strings / soft_pad / pluck）— 重新設計更溫暖自然
-    _playSimpleNote(midi, startTime, duration) {
+    _playSimpleNote(midi, startTime, duration, dest = null) {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
         const ctx = this.audioCtx;
 
@@ -964,7 +1017,7 @@ class AccompanimentSystem {
             osc1.connect(g1); g1.connect(filter);
             osc2.connect(g2); g2.connect(filter);
             filter.connect(masterGain);
-            masterGain.connect(ctx.destination);
+            masterGain.connect(dest || ctx.destination);
 
             lfo.start(startTime); lfo.stop(startTime + duration + 0.5);
             osc1.start(startTime); osc1.stop(startTime + duration + 0.5);
@@ -986,7 +1039,7 @@ class AccompanimentSystem {
 
             osc.connect(filter);
             filter.connect(masterGain);
-            masterGain.connect(ctx.destination);
+            masterGain.connect(dest || ctx.destination);
 
             osc.start(startTime);
             osc.stop(startTime + duration + 0.3);
@@ -1016,7 +1069,7 @@ class AccompanimentSystem {
             osc1.connect(filter);
             osc2.connect(g2); g2.connect(filter);
             filter.connect(masterGain);
-            masterGain.connect(ctx.destination);
+            masterGain.connect(dest || ctx.destination);
 
             osc1.start(startTime); osc1.stop(startTime + duration + 0.8);
             osc2.start(startTime); osc2.stop(startTime + duration + 0.8);
@@ -1041,7 +1094,7 @@ class AccompanimentSystem {
             gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
 
             osc.connect(gain);
-            gain.connect(this.audioCtx.destination);
+            gain.connect(this.bus ? this.bus.metronome : this.audioCtx.destination);
 
             osc.start(time);
             osc.stop(time + 0.05);
@@ -1130,6 +1183,11 @@ class AccompanimentSystem {
         utterance.rate = this.voiceRate;  // 語速
         utterance.pitch = 1.0;
         utterance.volume = 0.8;
+
+        // ducking：TTS 開始時把音樂壓低，結束時恢復（避免兩者互相蓋台）
+        utterance.onstart = () => this._duckMusic(true);
+        utterance.onend = () => this._duckMusic(false);
+        utterance.onerror = () => this._duckMusic(false);
 
         this.synth.speak(utterance);
     }

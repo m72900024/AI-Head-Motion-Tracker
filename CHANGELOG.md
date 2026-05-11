@@ -6,6 +6,36 @@
 
 ---
 
+## [Unreleased] - audio-first 視障適應層 (audio-first-redesign 分支)
+
+### Added - 新增
+- `AccompanimentSystem` audio graph 主幹：master gain + 4 通道 stereo panning（bass 左 / chord 中央 / melody 中央 / metronome 右）
+- TTS ducking 機制：`_speakMelodyHint` 報讀時自動把音樂壓到 35%（線性 50ms ramp），結束 / 取消時恢復
+- 新建 `_buildAudioBus()` 與 `_duckMusic(on)` 兩個私有方法
+
+### Changed - 變更
+- 所有 `_play*Note` 方法新增 `dest` 參數（向後相容預設 null fallback 到 `ctx.destination`）
+- `_playChordNotes` / `_playWaltzPattern` / `_playMelodyNotes` / `_scheduleMetronome` 改路由到對應通道：
+  - 和弦音 → chord channel（中央）
+  - 華爾滋低音 → bass channel（左聲道，低頻空間錨點）
+  - 旋律示範 → melody channel（中央，timbre 區分）
+  - 節拍器 → metronome channel（右聲道，輕度時間感）
+- `initAudioContext()` 與 `setAudioContext()` 在 audioCtx 建立後呼叫 `_buildAudioBus()` 一次
+
+### Why - 背景
+個案研究對象馥華為「視障 + 重度肢障」雙重障礙，9 宮格視覺 UI 對她無效。本次改造為 audio-first 適應層第一階段：
+- 先把音訊主幹建好，後續所有空間定位 / ducking / 多通道混音都靠這個 graph
+- 對標 peer 由 EyeHarp（gaze 視覺型）修正為 Soundbeam（純音訊型）
+- 視障使用者依賴 stereo cue 做空間定位，原 mono 設計浪費了一個自然維度
+
+詳見 vault `~/vault/Topics/無障礙數位樂器-視障肢障雙重.md`。
+
+### Backup - 備份
+- Tag `v1.2.0-pre-a11y` 標記改造前的完整快照（GitHub 已推送）
+- main 分支保持 v1.2.0 不動，本次工作於 `audio-first-redesign` 分支
+
+---
+
 ## [1.2.0] - 2026-05-09 (真實鋼琴取樣)
 
 ### Added - 新增
