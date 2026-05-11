@@ -117,6 +117,7 @@
                 </div>
             </div>
             
+            <div class="section-title">🎯 錄製與校正</div>
             <div class="mode-switch">
                 <button id="mode-rec-btn" onclick="setEditMode(false)" class="active-rec">🔴 錄製位置</button>
                 <button id="mode-edit-btn" onclick="setEditMode(true)">🔵 編輯參數</button>
@@ -184,6 +185,7 @@
                 </div>
             </div>
 
+            <div class="section-title">🎚️ 靈敏度</div>
             <div class="mt-2">
                 <label class="text-xs text-gray-400 block mb-2">反應靈敏度</label>
                 <input type="range" id="speed-slider" min="0.02" max="0.5" step="0.01" value="0.15">
@@ -237,6 +239,7 @@
                 </div>
             </div>
 
+            <div class="section-title">🔍 視覺輔助（協助者用）</div>
             <div class="debug-checkbox mt-4">
                 <input type="checkbox" id="show-zones" checked onchange="toggleZones()">
                 <label for="show-zones" class="text-yellow-200">顯示觸發圈</label>
@@ -251,6 +254,7 @@
                 <label for="show-debug">顯示軌跡紅點 & 嘴部偵測</label>
             </div>
             
+            <div class="section-title">💾 設定檔管理</div>
             <div class="mt-4 border-t border-gray-700 pt-3 flex gap-2">
                 <button onclick="saveConfig()" class="flex-1 bg-green-900/50 hover:bg-green-900 text-green-200 py-1 px-2 rounded text-xs border border-green-800">💾 儲存</button>
                 <button onclick="loadConfig()" class="flex-1 bg-blue-900/50 hover:bg-blue-900 text-blue-200 py-1 px-2 rounded text-xs border border-blue-800">📂 讀取</button>
