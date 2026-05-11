@@ -32,7 +32,18 @@
 
 ### Backup - 備份
 - Tag `v1.2.0-pre-a11y` 標記改造前的完整快照（GitHub 已推送）
+- Tag `panel-task1-done` 標記 UI 重組 Task 1 完成的快照
 - main 分支保持 v1.2.0 不動，本次工作於 `audio-first-redesign` 分支
+
+### Changed - UI 重組（panel-restructure，2026-05-11）
+- 新建「🎤 彈奏設定」面板，把主旋律相關控制（樂器/音量/長度/回中/嘴部/連彈模式）集中
+- 「🔁 連彈模式」位置錯置修正：從伴奏面板搬到彈奏面板
+- 校正面板加 4 個 section title 釐清子區段（🎯 錄製/🎚️ 靈敏度/🔍 視覺輔助/💾 設定檔管理）
+- 三面板互斥 toggle（任一開啟自動關其他兩個）
+- 按鈕 emoji 區分：🎤 彈奏 / 🎼 伴奏 / ⚙️ 校正（避免兩個 🎹 撞色）
+- **零行為改動原則**：所有 element id 保持不變，CSV 匯入 / saveConfig / loadConfig 完全相容舊版
+
+詳見 `docs/superpowers/plans/2026-05-11-panel-restructure.md`。
 
 ---
 
