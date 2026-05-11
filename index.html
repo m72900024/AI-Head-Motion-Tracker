@@ -237,53 +237,6 @@
                 </div>
             </div>
 
-            <!-- 音效設定區塊 -->
-            <div class="section-title">🎵 音效設定</div>
-            
-            <div class="flex items-center justify-between mb-2 p-2 bg-gray-800 rounded border border-gray-600">
-                <label class="text-xs text-gray-300 font-bold cursor-pointer" for="return-center-toggle">回中重置 (單次觸發)</label>
-                <!-- 移除 checked 屬性，預設不開啟 -->
-                <input type="checkbox" id="return-center-toggle" class="w-4 h-4 accent-purple-500 cursor-pointer">
-            </div>
-
-            <div class="flex flex-col gap-2">
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-300">樂器:</label>
-                    <select id="instrument-select" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
-                        <option value="piano">🎹 鋼琴（真實取樣）</option>
-                        <option value="synth">🎛️ 合成鋼琴（離線備援）</option>
-                        <option value="8bit">👾 8-Bit 電子音</option>
-                        <option value="flute">🌬️ 長笛</option>
-                    </select>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <div class="flex justify-between"><label class="text-[0.6rem] text-gray-400">音量:</label><span id="vol-val" class="text-[0.6rem] text-gray-300">50%</span></div>
-                    <input type="range" id="vol-slider" min="0" max="100" step="1" value="50" class="accent-purple-500">
-                </div>
-                <div class="flex flex-col gap-1">
-                    <div class="flex justify-between"><label class="text-[0.6rem] text-gray-400">長度:</label><span id="dur-val" class="text-[0.6rem] text-gray-300">1.5s</span></div>
-                    <input type="range" id="dur-slider" min="0.1" max="3.0" step="0.1" value="1.5" class="accent-purple-500">
-                </div>
-            </div>
-
-            <!-- 新增嘴部控制區塊 (已恢復顯示) -->
-            <div>
-                <div class="section-title">👄 嘴部控制 (八度切換)</div>
-                <div class="flex flex-col gap-2 mb-2">
-                    <div class="flex items-center justify-between">
-                        <label class="text-xs text-gray-300" for="mouth-enable-check">啟用嘴部八度控制</label>
-                        <input type="checkbox" id="mouth-enable-check" checked class="w-4 h-4 accent-pink-500">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs text-gray-400">觸發動作:</label>
-                        <select id="mouth-trigger-mode" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
-                            <option value="close" selected>🤐 閉嘴瞬間切換 (預設)</option>
-                            <option value="open">😮 張嘴瞬間切換</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
             <div class="debug-checkbox mt-4">
                 <input type="checkbox" id="show-zones" checked onchange="toggleZones()">
                 <label for="show-zones" class="text-yellow-200">顯示觸發圈</label>
@@ -312,7 +265,54 @@
         <!-- 獨立的彈奏面板（頭控主旋律設定）-->
         <div id="play-panel" class="side-panel">
             <h3 class="text-lg font-bold mb-2 border-b border-gray-700 pb-2">🎹 彈奏設定</h3>
-            <!-- 內容將由 Task 2、Task 3 從其他面板搬入 -->
+
+            <!-- 主旋律音色與行為 -->
+            <div class="section-title">🎹 主旋律 (Melody)</div>
+
+            <div class="flex items-center justify-between mb-2 p-2 bg-gray-800 rounded border border-gray-600">
+                <label class="text-xs text-gray-300 font-bold cursor-pointer" for="return-center-toggle">回中重置 (單次觸發)</label>
+                <input type="checkbox" id="return-center-toggle" class="w-4 h-4 accent-purple-500 cursor-pointer">
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-300">樂器:</label>
+                    <select id="instrument-select" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
+                        <option value="piano">🎹 鋼琴（真實取樣）</option>
+                        <option value="synth">🎛️ 合成鋼琴（離線備援）</option>
+                        <option value="8bit">👾 8-Bit 電子音</option>
+                        <option value="flute">🌬️ 長笛</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between"><label class="text-[0.6rem] text-gray-400">音量:</label><span id="vol-val" class="text-[0.6rem] text-gray-300">50%</span></div>
+                    <input type="range" id="vol-slider" min="0" max="100" step="1" value="50" class="accent-purple-500">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between"><label class="text-[0.6rem] text-gray-400">長度:</label><span id="dur-val" class="text-[0.6rem] text-gray-300">1.5s</span></div>
+                    <input type="range" id="dur-slider" min="0.1" max="3.0" step="0.1" value="1.5" class="accent-purple-500">
+                </div>
+            </div>
+
+            <!-- 嘴部控制（八度切換）-->
+            <div>
+                <div class="section-title">👄 嘴部控制 (八度切換)</div>
+                <div class="flex flex-col gap-2 mb-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-gray-300" for="mouth-enable-check">啟用嘴部八度控制</label>
+                        <input type="checkbox" id="mouth-enable-check" checked class="w-4 h-4 accent-pink-500">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs text-gray-400">觸發動作:</label>
+                        <select id="mouth-trigger-mode" class="bg-gray-800 text-xs text-white p-1 rounded border border-gray-600">
+                            <option value="close" selected>🤐 閉嘴瞬間切換 (預設)</option>
+                            <option value="open">😮 張嘴瞬間切換</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 3 將在此插入「連彈模式」 -->
         </div>
 
         <!-- 獨立的伴奏面板 -->
