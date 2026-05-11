@@ -312,7 +312,15 @@
                 </div>
             </div>
 
-            <!-- Task 3 將在此插入「連彈模式」 -->
+            <!-- 連彈模式（頭停住自動重複觸發）-->
+            <div class="section-title">🔁 連彈行為</div>
+            <div class="flex items-center gap-2 mt-2 bg-rose-700/50 p-1 rounded border border-rose-600">
+                <input type="checkbox" id="repeat-check" class="w-4 h-4 accent-rose-500 cursor-pointer">
+                <label for="repeat-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🔁 連彈模式 (頭停住自動重複)</label>
+            </div>
+            <div id="repeat-info" class="mt-1 hidden">
+                <p class="text-[0.55rem] text-gray-500">停留在同一區域會跟隨 BPM 自動重複觸發音符</p>
+            </div>
         </div>
 
         <!-- 獨立的伴奏面板 -->
@@ -418,14 +426,6 @@
                     <label for="waltz-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🩰 華爾滋伴奏 (3/4 低音-和弦-和弦)</label>
                 </div>
 
-                <!-- 連彈模式 -->
-                <div class="flex items-center gap-2 mt-2 bg-rose-700/50 p-1 rounded border border-rose-600">
-                    <input type="checkbox" id="repeat-check" class="w-4 h-4 accent-rose-500 cursor-pointer">
-                    <label for="repeat-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🔁 連彈模式 (頭停住自動重複)</label>
-                </div>
-                <div id="repeat-info" class="mt-1 hidden">
-                    <p class="text-[0.55rem] text-gray-500">停留在同一區域會跟隨 BPM 自動重複觸發音符</p>
-                </div>
             </div>
         </div>
     </div>
