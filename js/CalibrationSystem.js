@@ -37,6 +37,10 @@ class CalibrationSystem {
         // Storage
         this.STORAGE_KEY_PREFIX = 'head_tracker_config_v11_profile_';
         this.currentProfileIndex = 1;
+
+        // Cloud sync (Firestore)
+        this.cloudSync = config.cloudSync || null;
+        this.pendingRemoteConfig = null;
         
         // Constants
         this.DEFAULT_BASE_MIDI = {
@@ -53,8 +57,19 @@ class CalibrationSystem {
 
     init() {
         this.bindEvents();
-        // Auto load config after 1s
-        setTimeout(() => this.loadConfig(), 1000);
+        // Auto load config after 1s — 走雲端優先版本
+        setTimeout(() => this.loadConfigWithCloud(), 1000);
+        // 訂閱遠端變更
+        if (this.cloudSync) {
+            this.cloudSync.subscribe(this.currentProfileIndex, (remoteConfig) => {
+                this.pendingRemoteConfig = remoteConfig;
+                const btn = document.getElementById('cloud-apply-btn');
+                if (btn) btn.style.display = 'inline-block';
+                if (this.config.showFeedback) {
+                    this.config.showFeedback(`☁️ 雲端有新設定（${remoteConfig.updatedBy || '未知'}），按左上按鈕套用`);
+                }
+            });
+        }
     }
 
     bindEvents() {
@@ -350,90 +365,145 @@ class CalibrationSystem {
                 this.config.showFeedback("❌ 儲存失敗");
             }
         }
+        // Fire-and-forget 同步到雲端（debounced 內部 800ms）
+        if (this.cloudSync) {
+            this.cloudSync.upload(this.currentProfileIndex, config);
+        }
     }
 
-    // Load Config
-    loadConfig() {
-        // Reset to defaults
+    // 雲端優先載入：先試 Firestore，失敗或無資料才走本地
+    async loadConfigWithCloud() {
+        if (!this.cloudSync) {
+            this.loadConfig();
+            return;
+        }
+        const cloudData = await this.cloudSync.download(this.currentProfileIndex);
+        if (cloudData && cloudData.calibrationData) {
+            // 套用雲端版，同時寫入 localStorage 當離線快取
+            this._applyConfigObject(cloudData);
+            try {
+                const key = this.STORAGE_KEY_PREFIX + this.currentProfileIndex;
+                localStorage.setItem(key, JSON.stringify(cloudData));
+            } catch (e) {}
+            if (this.config.showFeedback) {
+                this.config.showFeedback(`☁️ 已載入雲端設定（${cloudData.updatedBy || '未知'} @ ${(cloudData.updatedAt || '').slice(0,10)}）`);
+            }
+            if (this.config.updateModeDisplay) {
+                this.config.updateModeDisplay(Object.keys(this.calibrationData).length);
+            }
+        } else {
+            this.loadConfig();
+        }
+    }
+
+    // 套用 pending remote 變更（從 onSnapshot 收到的）
+    applyPendingRemote() {
+        if (!this.pendingRemoteConfig) return;
+        const cfg = this.pendingRemoteConfig;
+        this._applyConfigObject(cfg);
+        try {
+            const key = this.STORAGE_KEY_PREFIX + this.currentProfileIndex;
+            localStorage.setItem(key, JSON.stringify(cfg));
+        } catch (e) {}
+        if (this.config.updateModeDisplay) {
+            this.config.updateModeDisplay(Object.keys(this.calibrationData).length);
+        }
+        this.pendingRemoteConfig = null;
+        const btn = document.getElementById('cloud-apply-btn');
+        if (btn) btn.style.display = 'none';
+        if (this.config.showFeedback) {
+            this.config.showFeedback(`✅ 已套用雲端新設定`);
+        }
+    }
+
+    // 套用 config 物件到 state + DOM（從 cloud 或 localStorage 都用同一支）
+    _applyConfigObject(config) {
         this.calibrationData = {};
         this.centerOffset = { yaw: 0, pitch: 0.45 };
         this.defaultTriggerRadius = 40;
-        
+
         const radiusSlider = document.getElementById('radius-slider');
         const radiusValDisplay = document.getElementById('radius-val');
         radiusSlider.value = 40;
         radiusValDisplay.innerText = 40;
-        
+
+        if (config.calibrationData) this.calibrationData = config.calibrationData;
+        if (config.centerOffset) this.centerOffset = config.centerOffset;
+        if (config.defaultTriggerRadius) {
+            this.defaultTriggerRadius = config.defaultTriggerRadius;
+            radiusSlider.value = this.defaultTriggerRadius;
+            radiusValDisplay.innerText = this.defaultTriggerRadius;
+        }
+        if (config.smoothingFactor) {
+            this.smoothingFactor = config.smoothingFactor;
+            const ss = document.getElementById('speed-slider');
+            if (ss) ss.value = this.smoothingFactor;
+        }
+        if (config.soundSettings) {
+            this.soundSettings = config.soundSettings;
+            if (this.soundSettings.returnToCenter === undefined) this.soundSettings.returnToCenter = false;
+            const rct = document.getElementById('return-center-toggle');
+            const ins = document.getElementById('instrument-select');
+            const vs = document.getElementById('vol-slider');
+            const vv = document.getElementById('vol-val');
+            const ds = document.getElementById('dur-slider');
+            const dv = document.getElementById('dur-val');
+            if (rct) rct.checked = this.soundSettings.returnToCenter;
+            if (ins) ins.value = this.soundSettings.instrument;
+            if (vs) vs.value = this.soundSettings.volume * 100;
+            if (vv) vv.innerText = `${Math.round(this.soundSettings.volume * 100)}%`;
+            if (ds) ds.value = this.soundSettings.duration;
+            if (dv) dv.innerText = `${this.soundSettings.duration}s`;
+        }
+        if (config.mouthControlEnabled !== undefined) {
+            this.mouthControlEnabled = config.mouthControlEnabled;
+            const mec = document.getElementById('mouth-enable-check');
+            if (mec) mec.checked = this.mouthControlEnabled;
+        }
+        if (config.mouthTriggerMode !== undefined) {
+            this.mouthTriggerMode = config.mouthTriggerMode;
+            const mtm = document.getElementById('mouth-trigger-mode');
+            if (mtm) mtm.value = this.mouthTriggerMode;
+        }
+        if (config.scalingMode !== undefined) this.scalingMode = config.scalingMode;
+        if (config.yawScale !== undefined) this.yawScale = config.yawScale;
+        if (config.pitchScale !== undefined) this.pitchScale = config.pitchScale;
+
+        document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
+        for (let id in this.calibrationData) {
+            const btn = document.getElementById(`btn-${id}`);
+            if (btn) btn.classList.add('recorded');
+        }
+    }
+
+    // Load Config（從 localStorage）
+    loadConfig() {
         const key = this.STORAGE_KEY_PREFIX + this.currentProfileIndex;
         const json = localStorage.getItem(key);
-        
         if (json) {
             try {
                 const config = JSON.parse(json);
-                if (config.calibrationData) this.calibrationData = config.calibrationData;
-                if (config.centerOffset) this.centerOffset = config.centerOffset;
-                if (config.defaultTriggerRadius) {
-                    this.defaultTriggerRadius = config.defaultTriggerRadius;
-                    radiusSlider.value = this.defaultTriggerRadius;
-                    radiusValDisplay.innerText = this.defaultTriggerRadius;
-                }
-                if (config.smoothingFactor) {
-                    this.smoothingFactor = config.smoothingFactor;
-                    document.getElementById('speed-slider').value = this.smoothingFactor;
-                }
-                if (config.soundSettings) {
-                    this.soundSettings = config.soundSettings;
-                    if (this.soundSettings.returnToCenter === undefined) this.soundSettings.returnToCenter = false;
-                    document.getElementById('return-center-toggle').checked = this.soundSettings.returnToCenter;
-                    document.getElementById('instrument-select').value = this.soundSettings.instrument;
-                    document.getElementById('vol-slider').value = this.soundSettings.volume * 100;
-                    document.getElementById('vol-val').innerText = `${Math.round(this.soundSettings.volume * 100)}%`;
-                    document.getElementById('dur-slider').value = this.soundSettings.duration;
-                    document.getElementById('dur-val').innerText = `${this.soundSettings.duration}s`;
-                }
-                if (config.mouthControlEnabled !== undefined) {
-                    this.mouthControlEnabled = config.mouthControlEnabled;
-                    document.getElementById('mouth-enable-check').checked = this.mouthControlEnabled;
-                }
-                if (config.mouthTriggerMode !== undefined) {
-                    this.mouthTriggerMode = config.mouthTriggerMode;
-                    document.getElementById('mouth-trigger-mode').value = this.mouthTriggerMode;
-                }
-                if (config.scalingMode !== undefined) {
-                    this.scalingMode = config.scalingMode;
-                }
-                if (config.yawScale !== undefined) {
-                    this.yawScale = config.yawScale;
-                }
-                if (config.pitchScale !== undefined) {
-                    this.pitchScale = config.pitchScale;
-                }
-                
-                // Update UI
-                document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
-                for (let id in this.calibrationData) {
-                    const btn = document.getElementById(`btn-${id}`);
-                    if (btn) btn.classList.add('recorded');
-                }
+                this._applyConfigObject(config);
             } catch (e) {
                 if (this.config.showFeedback) {
                     this.config.showFeedback("❌ 讀取失敗");
                 }
             }
         } else {
-            document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
+            // 空狀態：重置 + 提示
+            this._applyConfigObject({});
             if (this.config.showFeedback) {
                 this.config.showFeedback(`ℹ️ 設定檔 ${this.currentProfileIndex} 為空`);
             }
         }
-        
+
         if (this.config.updateModeDisplay) {
             this.config.updateModeDisplay(Object.keys(this.calibrationData).length);
         }
-        
+
         // Reset point settings panel
         const pointSettingsPanel = document.getElementById('point-settings-panel');
-        pointSettingsPanel.classList.add('hidden');
+        if (pointSettingsPanel) pointSettingsPanel.classList.add('hidden');
         document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('selected'));
     }
 

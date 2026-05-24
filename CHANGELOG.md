@@ -8,6 +8,25 @@
 
 ## [Unreleased] - audio-first 視障適應層 (audio-first-redesign 分支)
 
+### Added - 雲端 profile 同步（Firestore，2026-05-25）
+- 新增 Firebase 整合（project `ai-head-tracker`）— Firestore + Web SDK CDN
+- 新建 `js/CloudSync.js` 模組：download / upload (800ms debounce) / onSnapshot listener / 同步狀態管理
+- 新建 `firebase-config.js`（公開 config，安全靠 Firestore Rules）
+- 新建 `firebase.json` + `.firebaserc` + `firestore.rules`（測試期完全開放讀寫；正式發佈前要縮）
+- CalibrationSystem 加 cloud hook：
+  - 啟動走 `loadConfigWithCloud()` — 先試雲端、失敗 fallback localStorage、再 fallback defaults
+  - `saveConfig()` 寫完 localStorage 後 fire-and-forget 上雲（debounced）
+  - 訂閱遠端變更 → 顯示左上「☁️ 套用新設定」按鈕讓協助者手動套用（不打斷馥華彈奏中的 session）
+  - 重構：抽出 `_applyConfigObject()` 共用方法，loadConfig + cloud download + applyPendingRemote 三條路徑都用同一支
+- UI：左上加雲端同步狀態燈（🟢已同步 / 🟡同步中 / 🔴失敗 / ⚫離線）
+- 馥華（profile 1）初始資料已從 2026-03-28 CSV seed 到 `head_tracker_profiles/1`
+- Firestore SDK 內建離線快取（馥華家斷網仍可用最後一份 profile）
+
+### Why - 背景
+父母年長難協助馥華手動匯入/匯出 CSV，現在所有裝置打開網址即拿到最新 profile；治療師/家長/azen 用任何裝置改 → 1-3 秒內同步到馥華家。無登入、無 DB schema 設計負擔。
+
+
+
 ### Added - 新增
 - `AccompanimentSystem` audio graph 主幹：master gain + 4 通道 stereo panning（bass 左 / chord 中央 / melody 中央 / metronome 右）
 - TTS ducking 機制：`_speakMelodyHint` 報讀時自動把音樂壓到 35%（線性 50ms ramp），結束 / 取消時恢復

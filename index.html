@@ -17,11 +17,17 @@
     <!-- Tone.js — 真實鋼琴取樣（Salamander Yamaha C5）-->
     <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.min.js"></script>
 
+    <!-- Firebase（雲端 profile 同步）-->
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
     <!-- 外部樣式表 -->
     <link rel="stylesheet" href="css/style.css">
 
     <!-- 核心模組 -->
     <script src="js/config.js"></script>
+    <script src="js/CloudSync.js"></script>
     <script src="js/CalibrationSystem.js"></script>
     <script src="js/FaceTracker.js"></script>
     <script src="js/UIController.js"></script>
@@ -103,6 +109,10 @@
             <button class="font-size-btn size-m" onclick="setFontSize('medium')" title="中">A</button>
             <button class="font-size-btn size-l" onclick="setFontSize('large')" title="大">A</button>
         </div>
+
+        <!-- 雲端同步狀態（綠=已同步 / 黃=同步中 / 紅=失敗 / 黑=離線）-->
+        <div id="cloud-sync-status" class="cloud-sync-status" data-status="init" title="雲端同步狀態">⚪ 初始化中</div>
+        <button id="cloud-apply-btn" class="cloud-apply-btn" style="display:none" onclick="applyRemoteProfile()" title="套用遠端新設定">☁️ 套用新設定</button>
 
         <!-- 三選一面板按鈕（彈奏 / 伴奏 / 校正） -->
         <button class="btn-base play-btn" onclick="togglePlayPanel()">🎤 彈奏設定</button>
@@ -548,9 +558,16 @@
         // ============================================================
         // 初始化模組
         // ============================================================
-        
+
+        // Initialize CloudSync（Firestore 雲端 profile 同步）
+        const cloudSync = new CloudSync({
+            showFeedback: (msg) => uiController && uiController.showFeedback(msg),
+        });
+        cloudSync.init();
+
         // Initialize CalibrationSystem
         calibrationSystem = new CalibrationSystem({
+            cloudSync: cloudSync,
             showFeedback: (msg) => uiController.showFeedback(msg),
             updateModeDisplay: (count) => uiController.updateModeDisplay(count),
             normalizeYaw: (raw) => raw - calibrationSystem.getCenterOffset().yaw,
@@ -561,6 +578,9 @@
             onPreviewNote: (pointId) => { playNote(0, pointId, true); },
             getSelectedPointId: () => uiController ? uiController.getSelectedPointId() : null
         });
+
+        // 全域函式：左上「☁️ 套用新設定」按鈕呼叫
+        window.applyRemoteProfile = () => calibrationSystem.applyPendingRemote();
         
         // Initialize UIController
         uiController = new UIController({
