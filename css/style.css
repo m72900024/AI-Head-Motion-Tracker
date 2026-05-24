@@ -92,6 +92,31 @@ body.font-large .side-panel { --font-scale: 1.5; }
 .side-panel [class*="text-[0.55rem]"] { font-size: calc(0.55rem * var(--font-scale)); }
 .side-panel [class*="text-[0.6rem]"] { font-size: calc(0.6rem * var(--font-scale)); }
 
+/* 雲端同步狀態（左上角小燈號）*/
+.cloud-sync-status {
+    position: absolute; top: 20px; left: 20px; z-index: 60;
+    background: rgba(0, 0, 0, 0.75); border: 1px solid #00ffcc; border-radius: 6px;
+    padding: 4px 10px; font-size: 0.7rem; color: #94a3b8; pointer-events: auto;
+    font-family: inherit; cursor: default;
+}
+.cloud-sync-status[data-status="synced"] { border-color: #10b981; color: #6ee7b7; }
+.cloud-sync-status[data-status="syncing"] { border-color: #f59e0b; color: #fcd34d; }
+.cloud-sync-status[data-status="error"] { border-color: #ef4444; color: #fca5a5; }
+.cloud-sync-status[data-status="offline"] { border-color: #6b7280; color: #9ca3af; }
+
+.cloud-apply-btn {
+    position: absolute; top: 50px; left: 20px; z-index: 60;
+    background: #f59e0b; color: #000; font-weight: bold;
+    border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.75rem;
+    cursor: pointer; pointer-events: auto;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+}
+.cloud-apply-btn:hover { background: #fcd34d; }
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+    50% { box-shadow: 0 0 10px 4px rgba(245, 158, 11, 0); }
+}
+
 .sound-btn { position: absolute; bottom: 20px; left: 20px; background: rgba(0, 0, 0, 0.7); color: #00ffcc; border: 1px solid #00ffcc; z-index: 40; }
 .sound-btn.active { background: #00ffcc; color: #000; }
 
