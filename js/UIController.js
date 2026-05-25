@@ -307,9 +307,14 @@ class UIController {
     }
 
     handleEnd() {
+        const wasDragging = this.isDragging;
         this.isDragging = false;
         this.draggedPointId = null;
         document.getElementById('output_canvas').style.cursor = 'default';
+        // 拖完才存（避免 mousemove 過程每幀寫雲端）
+        if (wasDragging && this.config.onDragEnd) {
+            this.config.onDragEnd();
+        }
     }
 
     handleWheel(evt) {
@@ -340,6 +345,11 @@ class UIController {
                 
                 if (this.config.onWheelResize) {
                     this.config.onWheelResize(hoveredId, delta);
+                }
+                // 滾輪結束 500ms 後存（debounce 連續滾動）
+                if (this.config.onWheelEnd) {
+                    clearTimeout(this._wheelEndTimer);
+                    this._wheelEndTimer = setTimeout(() => this.config.onWheelEnd(), 500);
                 }
                 handled = true;
                 return;
