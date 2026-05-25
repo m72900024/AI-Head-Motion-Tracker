@@ -83,17 +83,20 @@ class CalibrationSystem {
                 this.calibrationData[id].radius = this.defaultTriggerRadius;
             }
         });
+        radiusSlider.addEventListener('change', () => this.saveConfig());
 
         // Speed slider
         const speedSlider = document.getElementById('speed-slider');
         speedSlider.addEventListener('input', (e) => {
             this.smoothingFactor = parseFloat(e.target.value);
         });
+        speedSlider.addEventListener('change', () => this.saveConfig());
 
         // Sound Settings
         const returnCenterToggle = document.getElementById('return-center-toggle');
         returnCenterToggle.addEventListener('change', (e) => {
             this.soundSettings.returnToCenter = e.target.checked;
+            this.saveConfig();
         });
 
         const instrumentSelect = document.getElementById('instrument-select');
@@ -102,6 +105,7 @@ class CalibrationSystem {
             if (this.config.onInstrumentChange) {
                 this.config.onInstrumentChange(e.target.value);
             }
+            this.saveConfig();
         });
 
         const volSlider = document.getElementById('vol-slider');
@@ -114,6 +118,7 @@ class CalibrationSystem {
             if (this.config.onVolumeChange) {
                 this.config.onVolumeChange(this.soundSettings.volume);
             }
+            this.saveConfig();
         });
 
         const durSlider = document.getElementById('dur-slider');
@@ -122,16 +127,19 @@ class CalibrationSystem {
             this.soundSettings.duration = parseFloat(e.target.value);
             durValDisplay.innerText = `${e.target.value}s`;
         });
+        durSlider.addEventListener('change', () => this.saveConfig());
 
         // Mouth Control
         const mouthEnableCheck = document.getElementById('mouth-enable-check');
         mouthEnableCheck.addEventListener('change', (e) => {
             this.mouthControlEnabled = e.target.checked;
+            this.saveConfig();
         });
 
         const mouthTriggerModeSelect = document.getElementById('mouth-trigger-mode');
         mouthTriggerModeSelect.addEventListener('change', (e) => {
             this.mouthTriggerMode = e.target.value;
+            this.saveConfig();
         });
 
         // Point Settings

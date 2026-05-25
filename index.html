@@ -614,6 +614,7 @@
                 calibrationSystem.calibrationData[pointId].yaw = newYaw;
                 calibrationSystem.calibrationData[pointId].pitch = newPitch;
             },
+            onDragEnd: () => calibrationSystem.saveConfig(),
             onWheelResize: (pointId, delta) => {
                 const pointRadiusSlider = document.getElementById('point-radius-slider');
                 const pointRadiusVal = document.getElementById('point-radius-val');
@@ -625,6 +626,7 @@
                     pointRadiusVal.innerText = newR;
                 }
             },
+            onWheelEnd: () => calibrationSystem.saveConfig(),
             onToggleOctave: () => { uiController.toggleOctave(); },
             getCalibrationData: () => calibrationSystem.getCalibrationData(),
             defaultTriggerRadius: 40,
