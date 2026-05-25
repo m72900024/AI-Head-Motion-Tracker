@@ -8,6 +8,16 @@
 
 ## [Unreleased] - audio-first 視障適應層 (audio-first-redesign 分支)
 
+### Added - Profile 鎖定 + baseline 還原（2026-05-25）
+- **Profile 1 = 原始鎖定版**（馥華初始 CSV，不寫雲端，避免誤觸覆寫）
+- Profile 2/3 = 自由編輯區
+- 新 collection `head_tracker_baselines/original` = 永不被覆寫的原始副本
+- 新按鈕「📥 從原始 baseline 還原」— 一鍵把 baseline 套到當前 profile（#2 或 #3）
+- Profile 按鈕加標籤：🔒 1 原始 / 2 校正A / 3 校正B
+- `switchProfile()` 改走 `loadConfigWithCloud()` + 重新訂閱該 profile 的 onSnapshot
+- `saveConfig()` 在 profile 1 時跳過 cloud upload，feedback 訊息顯示鎖定狀態
+- 修復：2026-05-25 早先誤觸把 profile 1 全部清空 → 從 CSV 還原 + 雙保險建 baseline
+
 ### Added - 雲端 profile 同步（Firestore，2026-05-25）
 - 新增 Firebase 整合（project `ai-head-tracker`）— Firestore + Web SDK CDN
 - 新建 `js/CloudSync.js` 模組：download / upload (800ms debounce) / onSnapshot listener / 同步狀態管理
