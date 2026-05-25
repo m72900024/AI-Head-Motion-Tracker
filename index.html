@@ -129,10 +129,11 @@
             <div class="mb-3 pb-2">
                 <label class="text-xs text-blue-400 block mb-2 font-bold">📁 設定檔 (Profile)</label>
                 <div class="flex gap-2">
-                    <button onclick="switchProfile(1)" id="profile-btn-1" class="profile-btn active">1</button>
-                    <button onclick="switchProfile(2)" id="profile-btn-2" class="profile-btn">2</button>
-                    <button onclick="switchProfile(3)" id="profile-btn-3" class="profile-btn">3</button>
+                    <button onclick="switchProfile(1)" id="profile-btn-1" class="profile-btn active" title="原始馥華設定，鎖定不可寫">🔒 1 原始</button>
+                    <button onclick="switchProfile(2)" id="profile-btn-2" class="profile-btn" title="校正 A，可自由編輯">2 校正A</button>
+                    <button onclick="switchProfile(3)" id="profile-btn-3" class="profile-btn" title="校正 B，可自由編輯">3 校正B</button>
                 </div>
+                <button onclick="restoreFromBaseline()" class="w-full mt-2 bg-amber-900/50 hover:bg-amber-900 text-amber-200 py-1 px-2 rounded text-xs border border-amber-800" title="把原始馥華設定複製到目前 profile（需先切到 #2 或 #3）">📥 從原始 baseline 還原</button>
             </div>
             
             <div class="section-title">🎯 錄製與校正</div>
@@ -581,6 +582,8 @@
 
         // 全域函式：左上「☁️ 套用新設定」按鈕呼叫
         window.applyRemoteProfile = () => calibrationSystem.applyPendingRemote();
+        // 全域函式：「📥 從原始 baseline 還原」按鈕呼叫
+        window.restoreFromBaseline = () => calibrationSystem.restoreFromBaseline();
         
         // Initialize UIController
         uiController = new UIController({

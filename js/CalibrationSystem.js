@@ -354,11 +354,16 @@ class CalibrationSystem {
             pitchScale: this.pitchScale
         };
         
+        const isLocked = this.currentProfileIndex === 1;
         try {
             const key = this.STORAGE_KEY_PREFIX + this.currentProfileIndex;
             localStorage.setItem(key, JSON.stringify(config));
             if (this.config.showFeedback) {
-                this.config.showFeedback(`✅ 設定檔 ${this.currentProfileIndex} 已儲存！`);
+                if (isLocked) {
+                    this.config.showFeedback(`🔒 #1 為原始鎖定版，僅本機暫存（重整後消失，要保留請切到 #2 或 #3）`);
+                } else {
+                    this.config.showFeedback(`✅ 設定檔 ${this.currentProfileIndex} 已儲存（本機 + 雲端）`);
+                }
             }
         } catch (e) {
             if (this.config.showFeedback) {
@@ -366,7 +371,8 @@ class CalibrationSystem {
             }
         }
         // Fire-and-forget 同步到雲端（debounced 內部 800ms）
-        if (this.cloudSync) {
+        // ⚠️ Profile 1 是鎖定的原始版本，不寫雲端（避免誤觸覆寫 baseline）
+        if (this.cloudSync && !isLocked) {
             this.cloudSync.upload(this.currentProfileIndex, config);
         }
     }
@@ -758,7 +764,54 @@ class CalibrationSystem {
 
     switchProfile(index) {
         this.currentProfileIndex = index;
-        this.loadConfig();
+        // 用雲端優先版本（拿最新 profile）
+        this.loadConfigWithCloud();
+        // 重新訂閱新 profile 的遠端變更
+        if (this.cloudSync) {
+            this.cloudSync.subscribe(index, (remoteConfig) => {
+                this.pendingRemoteConfig = remoteConfig;
+                const btn = document.getElementById('cloud-apply-btn');
+                if (btn) btn.style.display = 'inline-block';
+                if (this.config.showFeedback) {
+                    this.config.showFeedback(`☁️ 雲端有新設定（${remoteConfig.updatedBy || '未知'}），按左上按鈕套用`);
+                }
+            });
+        }
+        // 鎖定提示
+        if (index === 1 && this.config.showFeedback) {
+            setTimeout(() => this.config.showFeedback(`🔒 #1 是原始鎖定版，變更不會儲存到雲端（切到 #2 或 #3 才會存）`), 800);
+        }
+    }
+
+    // 從 baseline 還原當前 profile
+    async restoreFromBaseline() {
+        if (this.currentProfileIndex === 1) {
+            if (this.config.showFeedback) this.config.showFeedback(`⚠️ #1 本來就是原始版，請切到 #2 或 #3 再還原`);
+            return;
+        }
+        if (!this.cloudSync || !this.cloudSync.db) {
+            if (this.config.showFeedback) this.config.showFeedback(`❌ 雲端未連線，無法還原`);
+            return;
+        }
+        try {
+            const doc = await this.cloudSync.db.collection('head_tracker_baselines').doc('original').get();
+            if (!doc.exists) {
+                if (this.config.showFeedback) this.config.showFeedback(`❌ 找不到原始 baseline`);
+                return;
+            }
+            const baseline = doc.data();
+            this._applyConfigObject(baseline);
+            this.saveConfig(); // 寫進當前 profile（localStorage + cloud）
+            if (this.config.showFeedback) {
+                this.config.showFeedback(`✅ 已從原始 baseline 還原到 #${this.currentProfileIndex}`);
+            }
+            if (this.config.updateModeDisplay) {
+                this.config.updateModeDisplay(Object.keys(this.calibrationData).length);
+            }
+        } catch (e) {
+            console.error('[restore] failed', e);
+            if (this.config.showFeedback) this.config.showFeedback(`❌ 還原失敗: ${e.message}`);
+        }
     }
 
     // 設定縮放模式
