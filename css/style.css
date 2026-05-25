@@ -105,12 +105,34 @@ body.font-large .side-panel { --font-scale: 1.5; }
 .cloud-sync-status[data-status="offline"] { border-color: #6b7280; color: #9ca3af; }
 
 .cloud-apply-btn {
-    position: absolute; top: 50px; left: 20px; z-index: 60;
+    position: absolute; top: 90px; left: 20px; z-index: 60;
     background: #f59e0b; color: #000; font-weight: bold;
     border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.75rem;
     cursor: pointer; pointer-events: auto;
     animation: pulse-glow 1.5s ease-in-out infinite;
 }
+
+/* 左上常駐 profile 切換器 */
+.profile-pills {
+    position: absolute; top: 50px; left: 20px; z-index: 60;
+    display: flex; gap: 4px; align-items: center;
+    background: rgba(0, 0, 0, 0.75); border: 1px solid #2563eb; border-radius: 6px;
+    padding: 4px; pointer-events: auto;
+}
+.profile-pill {
+    background: transparent; border: 1px solid transparent; color: #93c5fd;
+    cursor: pointer; border-radius: 4px; padding: 3px 10px; font-size: 0.75rem;
+    font-weight: bold; font-family: inherit; line-height: 1.2;
+    min-width: 28px; text-align: center;
+}
+.profile-pill:hover { background: rgba(37, 99, 235, 0.2); color: #fff; }
+.profile-pill.active { background: #2563eb; color: #fff; box-shadow: 0 0 6px rgba(37, 99, 235, 0.6); }
+.profile-pill-restore {
+    background: rgba(217, 119, 6, 0.3); border: 1px solid #d97706; color: #fcd34d;
+    cursor: pointer; border-radius: 4px; padding: 3px 8px; font-size: 0.75rem;
+    margin-left: 4px; font-family: inherit;
+}
+.profile-pill-restore:hover { background: rgba(217, 119, 6, 0.6); color: #fff; }
 .cloud-apply-btn:hover { background: #fcd34d; }
 @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }

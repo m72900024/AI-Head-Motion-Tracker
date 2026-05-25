@@ -218,14 +218,13 @@ class UIController {
     switchProfile(index) {
         for (let i = 1; i <= 3; i++) {
             const btn = document.getElementById(`profile-btn-${i}`);
-            if (i === index) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            const pill = document.getElementById(`profile-pill-${i}`);
+            const isActive = (i === index);
+            if (btn) btn.classList.toggle('active', isActive);
+            if (pill) pill.classList.toggle('active', isActive);
         }
         this.currentProfileIndex = index;
-        
+
         if (this.config.onProfileSwitch) {
             this.config.onProfileSwitch(index);
         }
