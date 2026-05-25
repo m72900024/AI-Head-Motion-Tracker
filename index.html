@@ -112,6 +112,15 @@
 
         <!-- 雲端同步狀態（綠=已同步 / 黃=同步中 / 紅=失敗 / 黑=離線）-->
         <div id="cloud-sync-status" class="cloud-sync-status" data-status="init" title="雲端同步狀態">⚪ 初始化中</div>
+
+        <!-- 左上常駐 profile 切換器（同步至校正面板內的版本）-->
+        <div class="profile-pills" role="group" aria-label="設定檔切換">
+            <button id="profile-pill-1" class="profile-pill active" onclick="switchProfile(1)" title="原始馥華設定（鎖定，不會儲存變更）">🔒 1</button>
+            <button id="profile-pill-2" class="profile-pill" onclick="switchProfile(2)" title="校正 A（可自由編輯，雲端同步）">2</button>
+            <button id="profile-pill-3" class="profile-pill" onclick="switchProfile(3)" title="校正 B（可自由編輯，雲端同步）">3</button>
+            <button class="profile-pill-restore" onclick="restoreFromBaseline()" title="從原始 baseline 還原到當前 profile（需先切到 #2 或 #3）">📥</button>
+        </div>
+
         <button id="cloud-apply-btn" class="cloud-apply-btn" style="display:none" onclick="applyRemoteProfile()" title="套用遠端新設定">☁️ 套用新設定</button>
 
         <!-- 三選一面板按鈕（彈奏 / 伴奏 / 校正） -->
