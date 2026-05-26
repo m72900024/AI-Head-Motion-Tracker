@@ -353,6 +353,13 @@
             <div id="repeat-info" class="mt-1 hidden">
                 <p class="text-[0.55rem] text-gray-500">停留在同一區域會跟隨 BPM 自動重複觸發音符</p>
             </div>
+
+            <!-- 連彈/伴奏速度（同步控制，與伴奏面板 BPM 鏡像）-->
+            <div class="flex items-center justify-between mt-3">
+                <label class="text-[0.6rem] text-gray-400">⏱️ 連彈速度 (BPM): <span id="bpm-val-mirror" class="text-gray-300">100</span></label>
+            </div>
+            <input type="range" id="bpm-slider-mirror" min="40" max="180" step="1" value="100" class="accent-rose-500 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer w-full">
+            <p class="text-[0.55rem] text-gray-500 mt-1">與伴奏 BPM 同一個值，兩邊改都會同步</p>
         </div>
 
         <!-- 獨立的伴奏面板 -->
@@ -737,11 +744,29 @@
 
         const bpmSlider = document.getElementById('bpm-slider');
         const bpmVal = document.getElementById('bpm-val');
+        const bpmSliderMirror = document.getElementById('bpm-slider-mirror');
+        const bpmValMirror = document.getElementById('bpm-val-mirror');
         bpmSlider.addEventListener('input', (e) => {
             const value = parseInt(e.target.value);
             bpmVal.innerText = value;
             accompaniment.setBpm(value);
+            // 同步鏡像 slider 顯示（避免重複觸發 event）
+            if (bpmSliderMirror && bpmSliderMirror.value !== e.target.value) {
+                bpmSliderMirror.value = value;
+                bpmValMirror.innerText = value;
+            }
         });
+        // 鏡像 slider：改值時 forward 到本尊 slider 並 dispatch event（讓既有處理鏈一次跑完）
+        if (bpmSliderMirror) {
+            bpmSliderMirror.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                bpmValMirror.innerText = value;
+                if (bpmSlider.value !== e.target.value) {
+                    bpmSlider.value = value;
+                    bpmSlider.dispatchEvent(new Event('input'));
+                }
+            });
+        }
 
         const chordVolSlider = document.getElementById('chord-vol-slider');
         const chordVolVal = document.getElementById('chord-vol-val');
