@@ -16,9 +16,9 @@ main { max-width: 760px; margin: 0 auto; padding: 30px 40px; background: #fff; }
 h1, h2, h3, h4 { color: #0f172a; line-height: 1.3; margin-top: 1.5em; margin-bottom: 0.5em; }
 h1 { font-size: 1.8rem; border-bottom: 3px solid #0284c7; padding-bottom: 6px; }
 h2 { font-size: 1.35rem; color: #0369a1; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
-h3 { font-size: 1.1rem; color: #0f766e; }
-h4 { font-size: 0.95rem; color: #475569; }
-p { margin: 0.5em 0; }
+h3 { font-size: 1.1rem; color: #0f766e; margin-top: 1.8em; }
+h4 { font-size: 0.98rem; color: #0c4a6e; margin-top: 1.2em; margin-bottom: 0.3em; }
+p { margin: 0.4em 0; }
 ul, ol { margin: 0.4em 0; padding-left: 1.5em; }
 li { margin: 0.2em 0; }
 code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 0.85em; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
@@ -52,6 +52,8 @@ th { background: #f1f5f9; font-weight: 600; }
 .pill.green  { background: #d1fae5; color: #065f46; }
 .pill.red    { background: #fee2e2; color: #991b1b; }
 .pill.gray   { background: #e5e7eb; color: #374151; }
+.pill.purple { background: #ede9fe; color: #5b21b6; }
+.pill.rose   { background: #ffe4e6; color: #9f1239; }
 
 .kbd {
     display: inline-block; padding: 1px 6px; border: 1px solid #cbd5e1; border-bottom-width: 2px;
@@ -62,6 +64,18 @@ th { background: #f1f5f9; font-weight: 600; }
 .toc ol { margin: 0; padding-left: 1.4em; }
 .toc a { color: #0369a1; text-decoration: none; }
 .toc a:hover { text-decoration: underline; }
+.toc ul { padding-left: 1.2em; font-size: 0.9em; color: #475569; margin: 0.2em 0; }
+
+/* ============ 每個控制項 ============ */
+.item {
+    border: 1px solid #e2e8f0; border-left: 3px solid #0369a1;
+    padding: 10px 14px; margin: 12px 0; border-radius: 0 5px 5px 0;
+    background: #fafbfc;
+}
+.item h4 { margin-top: 0; }
+.item-row { display: flex; gap: 8px; margin: 4px 0; font-size: 0.9em; }
+.item-row .label { flex-shrink: 0; width: 70px; color: #64748b; font-weight: 600; }
+.item-row .val { flex: 1; }
 
 /* ============ 速查卡（封面頁）============ */
 .speed-card {
@@ -81,7 +95,6 @@ th { background: #f1f5f9; font-weight: 600; }
 .speed-card-block ul { font-size: 0.88em; margin: 0; padding-left: 1.2em; }
 .speed-card-block li { margin: 0.15em 0; }
 
-/* 速查卡內 emergency 區塊（橫跨兩欄）*/
 .emergency {
     grid-column: 1 / -1;
     background: #fef2f2; border: 1.5px solid #ef4444; border-radius: 6px;
@@ -96,18 +109,16 @@ th { background: #f1f5f9; font-weight: 600; }
     a { color: inherit; text-decoration: none; }
     .no-print { display: none !important; }
 
-    /* 每章換頁 */
     section.chapter { page-break-before: always; }
     section.chapter:first-of-type { page-break-before: auto; }
 
     h1, h2, h3 { page-break-after: avoid; }
-    .callout, .step, table { page-break-inside: avoid; }
+    .callout, .step, table, .item { page-break-inside: avoid; }
     .toc { page-break-after: always; }
 
     @page { size: A4; margin: 18mm 16mm; }
 }
 
-/* 工具列（線上版顯示）*/
 .toolbar {
     position: sticky; top: 0; z-index: 10;
     background: #0c4a6e; color: #fff; padding: 8px 16px;
@@ -134,7 +145,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <main>
 
 <!-- ============================================================ -->
-<!-- 速查卡（封面 / 父母貼牆版）                                    -->
+<!-- 速查卡                                                         -->
 <!-- ============================================================ -->
 <div class="speed-card">
     <h1>🎹 馥華頭控鋼琴 — 速查卡</h1>
@@ -145,8 +156,8 @@ th { background: #f1f5f9; font-weight: 600; }
         <div class="speed-card-block">
             <h4>① 每次使用前</h4>
             <ul>
-                <li>打開瀏覽器到 <code>m72900024.github.io/AI-Head-Motion-Tracker/</code></li>
-                <li>按中央大按鈕 <strong>「▶ 點擊開始」</strong></li>
+                <li>瀏覽器到 <code>m72900024.github.io/AI-Head-Motion-Tracker/</code></li>
+                <li>按中央 <strong>「▶ 點擊開始」</strong></li>
                 <li>允許攝影機權限</li>
                 <li>馥華坐定，臉對準鏡頭</li>
             </ul>
@@ -173,7 +184,7 @@ th { background: #f1f5f9; font-weight: 600; }
         <div class="speed-card-block">
             <h4>④ 字體放大</h4>
             <ul>
-                <li>頂部中央 <span class="kbd">A</span> <span class="kbd">A</span> <span class="kbd">A</span> 三段切換</li>
+                <li>頂部中央 <span class="kbd">A</span> <span class="kbd">A</span> <span class="kbd">A</span> 三段</li>
                 <li>協助者看不清楚就放大</li>
             </ul>
         </div>
@@ -195,11 +206,31 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="toc">
     <ol>
         <li><a href="#ch1">馥華怎麼用這個 App</a></li>
-        <li><a href="#ch2">協助者的日常操作</a></li>
-        <li><a href="#ch3">校正調整（治療師）</a></li>
-        <li><a href="#ch4">音色與行為設定</a></li>
-        <li><a href="#ch5">連彈與伴奏</a></li>
-        <li><a href="#ch6">靈敏度與座標縮放</a></li>
+        <li><a href="#ch2">協助者的日常操作（左上常駐區）</a></li>
+        <li><a href="#ch3">🎤 彈奏設定（逐項說明）</a>
+            <ul>
+                <li>主旋律：回中重置 / 樂器 / 音量 / 長度</li>
+                <li>嘴部控制：啟用 / 觸發動作</li>
+                <li>連彈行為：連彈模式 / 連彈速度</li>
+            </ul>
+        </li>
+        <li><a href="#ch4">🎼 伴奏設定（逐項說明）</a>
+            <ul>
+                <li>曲風選擇 / 練習段落 / 伴奏音色</li>
+                <li>分解和弦 / 節拍器 / 語音報讀</li>
+                <li>速度 BPM / 伴奏音量 / 旋律示範 / 華爾滋</li>
+            </ul>
+        </li>
+        <li><a href="#ch5">⚙️ 校正與設定（逐項說明）</a>
+            <ul>
+                <li>設定檔切換 + baseline 還原</li>
+                <li>🎯 錄製與校正</li>
+                <li>🎚️ 反應靈敏度</li>
+                <li>📐 座標縮放（上下/左右）</li>
+                <li>🔍 視覺輔助</li>
+                <li>💾 設定檔管理（儲存/讀取/CSV）</li>
+            </ul>
+        </li>
         <li><a href="#appendix-a">附錄 A：故障排除</a></li>
         <li><a href="#appendix-b">附錄 B：進階（備份 / 多裝置同步）</a></li>
     </ol>
@@ -235,10 +266,6 @@ th { background: #f1f5f9; font-weight: 600; }
 
 <h3>1.3 連彈模式（預設打開）</h3>
 <p>頭部<strong>停在同一區域</strong>會自動跟著節拍重複觸發音符——不用反覆轉開再回來。</p>
-<ul>
-    <li>速度跟隨 BPM（預設 100）</li>
-    <li>想關掉：彈奏設定 → 取消 <span class="pill red">🔁 連彈模式</span> 勾選</li>
-</ul>
 
 </section>
 
@@ -246,194 +273,390 @@ th { background: #f1f5f9; font-weight: 600; }
 <!-- 第 2 章                                                        -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch2">
-<h2>2. 協助者的日常操作</h2>
+<h2>2. 協助者的日常操作（左上常駐區）</h2>
 
 <h3>2.1 啟動 App</h3>
 <div class="step"><div class="step-num">1</div><div class="step-body">瀏覽器打開 <code>https://m72900024.github.io/AI-Head-Motion-Tracker/</code></div></div>
-<div class="step"><div class="step-num">2</div><div class="step-body">按中央大按鈕 <strong>「▶ 點擊開始 (啟動音效)」</strong></div></div>
-<div class="step"><div class="step-num">3</div><div class="step-body">允許攝影機權限（瀏覽器會跳通知）</div></div>
-<div class="step"><div class="step-num">4</div><div class="step-body">等左上同步燈變成 <span class="pill green">🟢 已同步</span></div></div>
+<div class="step"><div class="step-num">2</div><div class="step-body">按中央 <strong>「▶ 點擊開始 (啟動音效)」</strong></div></div>
+<div class="step"><div class="step-num">3</div><div class="step-body">允許攝影機權限</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-body">等左上 <span class="pill green">🟢 已同步</span></div></div>
 
-<h3>2.2 認識左上區域</h3>
+<h3>2.2 左上元素一覽</h3>
 <table>
 <tr><th>元素</th><th>意義</th></tr>
-<tr><td><span class="pill green">🟢 已同步</span></td><td>雲端正常，所有設定即時備份到雲端</td></tr>
+<tr><td><span class="pill green">🟢 已同步</span></td><td>雲端正常，所有設定即時備份</td></tr>
 <tr><td><span class="pill amber">🟡 同步中</span></td><td>正在寫入雲端（1-3 秒）</td></tr>
 <tr><td><span class="pill red">🔴 失敗</span></td><td>網路或雲端問題，本地仍可用</td></tr>
 <tr><td><span class="pill gray">⚫ 離線</span></td><td>沒網路，純本地模式</td></tr>
-<tr><td><span class="pill blue">🔒 1</span> <span class="pill gray">2</span> <span class="pill gray">3</span></td><td>三個設定檔切換（藍色＝目前使用中）</td></tr>
+<tr><td><span class="pill blue">🔒 1</span> <span class="pill gray">2</span> <span class="pill gray">3</span></td><td>三設定檔切換（藍色＝當前）</td></tr>
 <tr><td><span class="pill amber">📥</span></td><td>從原始 baseline 還原</td></tr>
-<tr><td><span class="pill amber">☁️ 套用新設定</span></td><td>有遠端更新時出現，按下才套用（避免打斷彈奏）</td></tr>
+<tr><td><span class="pill amber">☁️ 套用新設定</span></td><td>有遠端更新時出現</td></tr>
 </table>
 
 <h3>2.3 三個設定檔的差別</h3>
 <table>
 <tr><th>Profile</th><th>用途</th><th>能否覆寫</th><th>雲端同步</th></tr>
-<tr><td><span class="pill blue">🔒 1 原始</span></td><td>馥華初始 CSV 校正</td><td>❌ 鎖定不可寫</td><td>不上雲（避免誤觸）</td></tr>
-<tr><td><span class="pill gray">2 校正 A</span></td><td>日常使用 / 自由調整</td><td>✅ 可寫</td><td>✅ 雲端同步</td></tr>
-<tr><td><span class="pill gray">3 校正 B</span></td><td>備用 / 實驗</td><td>✅ 可寫</td><td>✅ 雲端同步</td></tr>
+<tr><td><span class="pill blue">🔒 1 原始</span></td><td>馥華初始 CSV 校正</td><td>❌ 鎖定</td><td>不上雲</td></tr>
+<tr><td><span class="pill gray">2 校正 A</span></td><td>日常使用</td><td>✅</td><td>✅</td></tr>
+<tr><td><span class="pill gray">3 校正 B</span></td><td>備用 / 實驗</td><td>✅</td><td>✅</td></tr>
+</table>
+
+<h3>2.4 字體放大</h3>
+<p>頂部中央三顆 <span class="kbd">A</span>（小/中/大）——給視力差的協助者，馥華本人視障無感。狀態存瀏覽器，下次保持。</p>
+
+<h3>2.5 三個主面板按鈕（右下角）</h3>
+<table>
+<tr><th>按鈕</th><th>內容</th><th>章節</th></tr>
+<tr><td><span class="pill purple">🎤 彈奏設定</span></td><td>主旋律音色 / 嘴部 / 連彈</td><td>→ 第 3 章</td></tr>
+<tr><td><span class="pill rose">🎼 伴奏設定</span></td><td>自動和弦 / 節拍器 / 旋律示範</td><td>→ 第 4 章</td></tr>
+<tr><td><span class="pill gray">⚙️ 校正與設定</span></td><td>位置校正 / 靈敏度 / 縮放 / 視覺輔助 / CSV</td><td>→ 第 5 章</td></tr>
 </table>
 
 <div class="callout tip">
-<strong>建議流程</strong>：日常用 <span class="pill gray">2</span>，要嘗試新校正時切到 <span class="pill gray">3</span>。馥華原始版永遠在 <span class="pill blue">🔒 1</span>，任何時候按 <span class="pill amber">📥</span> 都能還原。
+三個面板<strong>互斥</strong>——打開一個會自動關閉其他兩個。
 </div>
-
-<h3>2.4 字體放大</h3>
-<p>頂部中央有三顆 <span class="kbd">A</span> 按鈕（小 / 中 / 大），讓視力不好的協助者看得清楚。馥華本人視障，這純粹給協助者用。</p>
-
-<h3>2.5 收折面板</h3>
-<p>各 section 標題（例如「🎯 錄製與校正」）旁有 ▾ 箭頭，點 title 可<strong>收折/展開</strong>，畫面才不會太擠。</p>
-<ul>
-    <li>▾ = 已展開</li>
-    <li>▸ = 已收折</li>
-    <li>收折狀態瀏覽器會記住，下次開仍然收折</li>
-</ul>
 
 </section>
 
 <!-- ============================================================ -->
-<!-- 第 3 章                                                        -->
+<!-- 第 3 章 — 彈奏設定                                              -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch3">
-<h2>3. 校正調整（治療師）</h2>
+<h2>3. 🎤 彈奏設定（逐項說明）</h2>
 
-<p>校正面板路徑：右側 <strong>⚙️ 校正與設定</strong> 按鈕打開。</p>
+<p>打開方式：右下 <span class="pill purple">🎤 彈奏設定</span> 按鈕。</p>
 
-<h3>3.1 設定中心點</h3>
-<p>當馥華頭部「自然放鬆」的位置不在畫面中央時，按 <strong>🎯 手動設定當前為中心點</strong> 重新對齊。</p>
+<h3>3.1 🎹 主旋律 (Melody)</h3>
 
-<h3>3.2 圓形範圍偵測（推薦）</h3>
-<p>讓馥華<strong>輕鬆地用頭部轉一個圓圈</strong>（不用刻意到極限），系統會自動估計她的可動範圍：</p>
-<div class="step"><div class="step-num">1</div><div class="step-body">按 <strong>🌀 開始圓形範圍偵測</strong></div></div>
-<div class="step"><div class="step-num">2</div><div class="step-body">讓馥華自然轉一圈（3-5 秒）</div></div>
-<div class="step"><div class="step-num">3</div><div class="step-body">再按一次按鈕結束偵測，9 宮格位置會自動分布</div></div>
+<div class="item">
+<h4>① 回中重置 (單次觸發)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">勾選後，<strong>頭回到中心區音就會停</strong>；不勾則音自然衰減</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">想要「按一下就停」的精準感 → 勾起來；想要鋼琴自然延音感 → 不勾</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">馥華原始 = <strong>不勾</strong>（延音較自然，配連彈模式效果好）</span></div>
+</div>
 
-<h3>3.3 9 宮格逐區錄製</h3>
-<p>若要更精準地設定每個音的位置：</p>
-<div class="step"><div class="step-num">1</div><div class="step-body">確認在「🔴 錄製位置」模式（左上紅色按鈕）</div></div>
-<div class="step"><div class="step-num">2</div><div class="step-body">讓馥華頭部轉到該音位置（例如 Do）</div></div>
-<div class="step"><div class="step-num">3</div><div class="step-body">點 9 宮格中對應的按鈕（例如 <strong>Do(1)</strong>），位置就被記錄</div></div>
-<div class="step"><div class="step-num">4</div><div class="step-body">9 個都錄完才完整</div></div>
+<div class="item">
+<h4>② 樂器</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">切換主旋律音色</span></div>
+<div class="item-row"><span class="label">選項</span><span class="val">
+🎹 鋼琴（真實取樣，Salamander Yamaha C5）｜
+🎛️ 合成鋼琴（離線備援）｜
+👾 8-Bit 電子音｜
+🌬️ 長笛
+</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">鋼琴音質最自然但需網路第一次載入；網速差/離線用合成鋼琴；想要變化用 8-bit 或長笛</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">預設 <strong>🎹 鋼琴</strong>，網路 OK 就維持</span></div>
+</div>
 
-<h3>3.4 微調已錄製的點</h3>
-<p>切到 <strong>🔵 編輯參數</strong> 模式後：</p>
-<ul>
-    <li><strong>拖拉</strong>校正圈到新位置 — 鬆手自動存檔</li>
-    <li>滑鼠 <strong>滾輪</strong> 在圈圈上 — 縮放感應半徑</li>
-    <li>點選某個圈，下方出現「個別設定面板」：
-        <ul>
-            <li>🎵 基音（Do/Re/Mi/...）</li>
-            <li>♭/♮/♯ 升降微調</li>
-            <li>個別半徑（覆蓋全域設定）</li>
-        </ul>
-    </li>
-</ul>
+<div class="item">
+<h4>③ 音量</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">主旋律整體音量</span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">0% ～ 100%，預設 50%</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">伴奏太大蓋住主旋律 → 主旋律調大或伴奏調小</span></div>
+</div>
 
-<div class="callout warn">
-<strong>注意</strong>：在 <span class="pill blue">🔒 1</span> 上做的任何變更只暫存在本機（重整頁面就消失），不會上雲。要保留請先切到 <span class="pill gray">2</span> 或 <span class="pill gray">3</span>。
+<div class="item">
+<h4>④ 長度 (音符延音時長)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">每次觸發音的衰減長度</span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">0.1 秒（極短促）～ 3.0 秒（綿長），預設 1.5 秒</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">連彈模式下太黏糊 → 縮短到 0.5-1.0；獨彈要鋼琴感 → 拉長到 2-3</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">配連彈模式 = 1.0；獨彈 = 1.5-2.0</span></div>
+</div>
+
+<h3>3.2 👄 嘴部控制 (八度切換)</h3>
+
+<div class="item">
+<h4>⑤ 啟用嘴部八度控制</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">勾選後，嘴部動作切換高低八度</span></div>
+<div class="item-row"><span class="label">何時關</span><span class="val">馥華嘴部無法控制 / 不想要八度切換時關掉</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">馥華原始 = <strong>啟用</strong></span></div>
+</div>
+
+<div class="item">
+<h4>⑥ 觸發動作</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">決定「哪個嘴形」切換到高八度</span></div>
+<div class="item-row"><span class="label">選項</span><span class="val">
+🤐 <strong>閉嘴瞬間切換</strong>（預設）— 平常自然張口微開，閉嘴 = 高八度<br>
+😮 <strong>張嘴瞬間切換</strong>— 平常嘴閉合，張開 = 高八度
+</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">馥華自然嘴形是張開的 → 用「閉嘴觸發」；自然嘴形是閉合的 → 用「張嘴觸發」</span></div>
+</div>
+
+<h3>3.3 🔁 連彈行為</h3>
+
+<div class="item">
+<h4>⑦ 連彈模式 (頭停住自動重複)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">頭停在同一區域 → 跟著 BPM 自動重複觸發該音</span></div>
+<div class="item-row"><span class="label">何時開</span><span class="val">想要持續演奏、不用一直轉開又回來 → 開（馥華肢障建議開）</span></div>
+<div class="item-row"><span class="label">何時關</span><span class="val">想要每個音都精準單次觸發 → 關</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">預設 <strong>打開</strong>（已記住偏好，下次自動恢復）</span></div>
+</div>
+
+<div class="item">
+<h4>⑧ 連彈速度 (BPM)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">連彈模式的重複頻率，<strong>與伴奏 BPM 是同一個值</strong></span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">40（極慢）～ 180（極快），預設 100</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">音符之間太密 → 降到 60-80；太散 → 升到 120-140</span></div>
+<div class="item-row"><span class="label">注意</span><span class="val">這條 slider 跟「伴奏設定 → 速度 BPM」雙向同步，改任一邊另一邊跟著動</span></div>
 </div>
 
 </section>
 
 <!-- ============================================================ -->
-<!-- 第 4 章                                                        -->
+<!-- 第 4 章 — 伴奏設定                                              -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch4">
-<h2>4. 音色與行為設定</h2>
+<h2>4. 🎼 伴奏設定（逐項說明）</h2>
 
-<p>路徑：右側 <strong>🎤 彈奏設定</strong> 按鈕打開。</p>
+<p>打開方式：右下 <span class="pill rose">🎼 伴奏設定</span> 按鈕。</p>
 
-<h3>4.1 樂器</h3>
-<table>
-<tr><th>選項</th><th>特性</th><th>備援</th></tr>
-<tr><td>🎹 piano</td><td>真實鋼琴取樣（Salamander Yamaha C5）</td><td>離線時自動切 synth</td></tr>
-<tr><td>🎛️ synth</td><td>oscillator 合成音</td><td>不需網路</td></tr>
-<tr><td>👾 8bit</td><td>方波（懷舊風）</td><td>不需網路</td></tr>
-<tr><td>🪈 flute</td><td>正弦波（柔和）</td><td>不需網路</td></tr>
-</table>
+<div class="item">
+<h4>① 選擇曲風/進行</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">選擇伴奏的和弦進行 / 既有曲目</span></div>
+<div class="item-row"><span class="label">選項</span><span class="val">
+-- 關閉 -- ／
+⏱ 純節拍器 (4/4) ／
+⏱ 純節拍器 (3/4) ／
+🙏 奇異恩典 (3/4, F大調) ／
+🙏 祈禱 (4/4, C大調) ／
+🐦 浜千鳥 (3/4, C大調, A-B-A') ／
+🎸 流行 C 大調 (C-G-Am-F) ／
+🎻 卡農進行 ／
+🎼 基礎 I-IV-V-I
+</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">練習特定曲目 → 選曲目；自由彈奏 → 選和弦進行；只要打拍 → 選純節拍器</span></div>
+</div>
 
-<h3>4.2 音量 / 時長 / 回中</h3>
-<table>
-<tr><th>設定</th><th>範圍</th><th>說明</th></tr>
-<tr><td>音量</td><td>0-100%</td><td>主旋律整體音量</td></tr>
-<tr><td>時長</td><td>0.5-5 秒</td><td>每次觸發音的延音長度</td></tr>
-<tr><td>回中</td><td>勾 / 不勾</td><td>勾選後頭回到中心會切斷音；不勾則自然衰減</td></tr>
-</table>
+<div class="item">
+<h4>② 練習段落 (Practice Section)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">選曲目時才出現——選擇從 A / B / A' 哪一段開始</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">想反覆練某一段（例如 B 段副歌）→ 直接跳過去</span></div>
+</div>
 
-<h3>4.3 嘴部控制</h3>
-<ul>
-    <li><strong>嘴部控制 enabled</strong>：開啟才會偵測嘴形</li>
-    <li><strong>觸發模式</strong>：
-        <ul>
-            <li><code>close</code>（閉嘴觸發）：閉嘴 = 切高音域</li>
-            <li><code>open</code>（張嘴觸發）：張嘴 = 切高音域</li>
-        </ul>
-    </li>
-</ul>
+<div class="item">
+<h4>③ 伴奏音色</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">和弦伴奏的音色</span></div>
+<div class="item-row"><span class="label">選項</span><span class="val">
+☁️ 柔和墊音 (Soft Pad) ／
+🎹 電鋼琴 (E.Piano，預設) ／
+🎻 合成弦樂 ／
+🎸 撥弦 (Pluck) ／
+🎸 木吉他 (Guitar)
+</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">電鋼琴最清楚不搶風頭；想要悠遠氛圍用 Soft Pad / 弦樂</span></div>
+</div>
+
+<div class="item">
+<h4>④ 分解和弦 (Arpeggio)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">勾選後和弦不齊奏，改成一個音一個音上行</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">伴奏太厚重蓋住主旋律 → 開；想要扎實節奏感 → 關</span></div>
+</div>
+
+<div class="item">
+<h4>⑤ 開啟節拍器 (Click)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">加一個咔咔聲幫忙打拍子</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">配連彈練速度感 → 開；錄音時不想要 → 關</span></div>
+<div class="item-row"><span class="label">提示</span><span class="val">節拍器旁邊有<strong>紅色燈號</strong>會跟著節奏閃</span></div>
+</div>
+
+<div class="item">
+<h4>⑥ 🔊 語音報讀旋律 (無障礙)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">用 TTS 報讀目前該彈哪個音（適合視障使用者跟譜）</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">馥華練新曲不熟 → 開報讀引導；熟了 → 關</span></div>
+<div class="item-row"><span class="label">附帶</span><span class="val">開啟後下方出現「語音速度」slider（0.5x ～ 2.0x，預設 1.0x）</span></div>
+</div>
+
+<div class="item">
+<h4>⑦ ▶ 開始 / 停止伴奏</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">手動啟動 / 停止伴奏播放</span></div>
+<div class="item-row"><span class="label">注意</span><span class="val">改曲風 / BPM / 音量都不需要重啟，即時生效</span></div>
+</div>
+
+<div class="item">
+<h4>⑧ 速度 (BPM)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">控制節拍器 / 自動和弦 / 連彈三件事的速度</span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">40 ～ 180 BPM，預設 100</span></div>
+<div class="item-row"><span class="label">與彈奏面板同步</span><span class="val">彈奏面板有同一條 slider，雙向連動</span></div>
+</div>
+
+<div class="item">
+<h4>⑨ 伴奏音量</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">伴奏整體音量（不影響主旋律）</span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">0% ～ 100%，預設 30%</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">伴奏壓過主旋律 → 降到 20-30%；伴奏聽不到 → 升到 50-70%</span></div>
+</div>
+
+<div class="item">
+<h4>⑩ 🎵 旋律示範 (Melody Guide)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">勾選後伴奏會同時播出主旋律（適合馥華跟著聽）</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">新曲不熟 → 開（聽範本）；熟了想自己彈 → 關</span></div>
+<div class="item-row"><span class="label">附帶</span><span class="val">開啟後下方出現「旋律音量」slider（預設 40%）</span></div>
+</div>
+
+<div class="item">
+<h4>⑪ 🩰 華爾滋伴奏 (3/4 低音-和弦-和弦)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">勾選後伴奏改採 oom-pah-pah 三拍模式（低音→和弦→和弦）</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">3/4 拍曲目（奇異恩典 / 浜千鳥）建議開；4/4 拍曲目不適合</span></div>
+</div>
 
 </section>
 
 <!-- ============================================================ -->
-<!-- 第 5 章                                                        -->
+<!-- 第 5 章 — 校正與設定                                            -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch5">
-<h2>5. 連彈與伴奏</h2>
+<h2>5. ⚙️ 校正與設定（逐項說明）</h2>
 
-<h3>5.1 連彈模式（預設打開）</h3>
-<p>位置：彈奏面板 → <strong>🔁 連彈行為</strong> section</p>
-<p>頭停在同一區域會自動跟著 BPM 重複觸發音符——馥華不用一直轉開又轉回來。</p>
+<p>打開方式：右下 <span class="pill gray">⚙️ 校正與設定</span> 按鈕。共 6 區塊：設定檔 / 錄製校正 / 靈敏度 / 座標縮放 / 視覺輔助 / 設定檔管理。</p>
 
-<h3>5.2 BPM 速度</h3>
-<p>BPM slider 在<strong>兩個面板都能調</strong>（雙向同步）：</p>
-<ul>
-    <li>🎤 彈奏設定 → 連彈速度（紅色 slider）</li>
-    <li>🎼 伴奏設定 → 速度 BPM（粉色 slider）</li>
-</ul>
-<p>BPM 同時控制三件事：連彈節奏 / 節拍器 / 自動和弦速度。</p>
+<h3>5.1 📁 設定檔切換 + baseline 還原</h3>
 
-<h3>5.3 自動和弦伴奏</h3>
-<p>位置：右側 <strong>🎼 伴奏設定</strong> 按鈕打開</p>
-<table>
-<tr><th>樂曲</th><th>調性 / 拍號</th><th>備註</th></tr>
-<tr><td>奇異恩典</td><td>C 大調 / 3/4</td><td>手寫譜 + 華爾滋模式</td></tr>
-<tr><td>祈禱</td><td>C 大調 / 4/4</td><td>含旋律示範</td></tr>
-<tr><td>浜千鳥</td><td>C 大調 / 3/4</td><td>A-B-A' 曲式</td></tr>
-<tr><td>自動和弦</td><td>多種進行</td><td>卡農 / 流行 / 藍調 / 爵士</td></tr>
-</table>
+<div class="item">
+<h4>① 設定檔按鈕 1 / 2 / 3</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">切換 profile，跟左上 pill 按鈕雙向同步</span></div>
+<div class="item-row"><span class="label">注意</span><span class="val"><span class="pill blue">🔒 1 原始</span> 只暫存本機不上雲；<span class="pill gray">2</span> / <span class="pill gray">3</span> 才會雲端同步</span></div>
+</div>
 
-<h3>5.4 華爾滋三拍模式</h3>
-<p>勾選後低音採 1-2-3 三拍 oom-pah-pah 進行（適合 3/4 拍曲目）。</p>
+<div class="item">
+<h4>② 📥 從原始 baseline 還原</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">把馥華原始版 baseline 複製到當前 profile</span></div>
+<div class="item-row"><span class="label">何時用</span><span class="val">當前 profile 被改壞 → 一鍵還原</span></div>
+<div class="item-row"><span class="label">限制</span><span class="val">必須先切到 <span class="pill gray">2</span> 或 <span class="pill gray">3</span>，在 <span class="pill blue">🔒 1</span> 上會被拒絕</span></div>
+</div>
 
-</section>
+<h3>5.2 🎯 錄製與校正（預設收折，點 title 展開）</h3>
 
-<!-- ============================================================ -->
-<!-- 第 6 章                                                        -->
-<!-- ============================================================ -->
-<section class="chapter" id="ch6">
-<h2>6. 靈敏度與座標縮放</h2>
+<div class="item">
+<h4>③ 🔴 錄製位置 / 🔵 編輯參數 模式切換</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">紅色模式 = 點 9 宮格按鈕<strong>錄製</strong>新位置；藍色模式 = <strong>編輯</strong>既有位置（拖拉 / 滾輪）</span></div>
+<div class="item-row"><span class="label">建議流程</span><span class="val">先紅色逐區錄一遍 → 切藍色微調</span></div>
+</div>
 
-<h3>6.1 反應靈敏度（smoothing）</h3>
-<p>路徑：校正面板 → 🎚️ 靈敏度</p>
-<ul>
-    <li>0.02 = <strong>非常靈敏</strong>（頭一動就反應，可能抖動）</li>
-    <li>0.15 = 預設</li>
-    <li>0.50 = <strong>非常平滑</strong>（反應遲緩，適合頭部 tremor）</li>
-</ul>
+<div class="item">
+<h4>④ 🎯 手動設定當前為中心點</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">把馥華當下頭部位置設為「中心 = 5 號區」</span></div>
+<div class="item-row"><span class="label">何時用</span><span class="val">馥華坐姿換了 / 中心漂移 / 9 宮格整體偏一邊</span></div>
+</div>
 
-<h3>6.2 座標縮放模式</h3>
-<table>
-<tr><th>模式</th><th>說明</th></tr>
-<tr><td>🔵 智能（auto）</td><td>系統根據範圍偵測結果自動計算 yaw/pitch 縮放</td></tr>
-<tr><td>⚙️ 手動（manual）</td><td>左右 / 上下靈敏度手動拉條（50-300%）</td></tr>
-</table>
+<div class="item">
+<h4>⑤ 🌀 開始圓形範圍偵測 (推薦)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">讓馥華<strong>輕鬆轉一個圓圈</strong>，系統自動估範圍 → 9 宮格自動分布</span></div>
+<div class="item-row"><span class="label">操作</span><span class="val">按下按鈕 → 馥華轉一圈 3-5 秒 → 再按一次結束</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">第一次設定 / 換人 / 換坐姿都建議跑這個</span></div>
+</div>
 
-<h3>6.3 個別點半徑</h3>
-<p>每個點都有自己的「感應半徑」（觸發範圍）：</p>
-<ul>
-    <li>全域 trigger radius slider 一次調全部</li>
-    <li>滑鼠滾輪在單一圈圈上 = 只調那一個</li>
-    <li>選中圈圈後個別設定面板的 slider 也可調該圈</li>
-</ul>
+<div class="item">
+<h4>⑥ 9 宮格錄製按鈕（Do / Re / Mi / Fa / 休止 / So / La / Si / Do'）</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">紅色模式下，馥華頭轉到該音位置 → 點按鈕 → 記錄</span></div>
+<div class="item-row"><span class="label">提示</span><span class="val">已錄製的按鈕會發亮顯示</span></div>
+</div>
+
+<div class="item">
+<h4>⑦ 個別點設定面板（藍色編輯模式下選中圈圈後出現）</h4>
+<div class="item-row"><span class="label">基音 (Base Note)</span><span class="val">改該位置對應的音名（C/D/E.../下拉選擇）</span></div>
+<div class="item-row"><span class="label">升降微調</span><span class="val">♭ ♮ ♯ 三段，可在基音上 ±1 半音</span></div>
+<div class="item-row"><span class="label">個別半徑</span><span class="val">10 ～ 120，只調該圈的感應範圍（覆蓋全域設定）</span></div>
+<div class="item-row"><span class="label">拖拉</span><span class="val">編輯模式下直接拖該圈到新位置，鬆手自動存</span></div>
+<div class="item-row"><span class="label">滾輪</span><span class="val">編輯模式下滑鼠滾輪在圈上 → 縮放半徑</span></div>
+</div>
+
+<div class="callout warn">
+<strong>⚠️ Profile 鎖定提醒</strong>：在 <span class="pill blue">🔒 1</span> 上做的任何錄製 / 拖拉 / 編輯都<strong>不會上雲</strong>，重整就消失。要保留請先切到 <span class="pill gray">2</span> 或 <span class="pill gray">3</span>。
+</div>
+
+<h3>5.3 🎚️ 反應靈敏度</h3>
+
+<div class="item">
+<h4>⑧ 反應靈敏度 (smoothing)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">頭部動作 → 螢幕游標的反應快慢。值越小反應越快但容易抖；越大越平滑但延遲</span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">0.02（極靈敏）～ 0.50（極平滑），預設 0.15</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val">
+馥華有頭部 tremor / 抖動 → <strong>調大</strong>到 0.3-0.5（平滑掉抖）<br>
+反應太遲鈍跟不上 → <strong>調小</strong>到 0.05-0.10
+</span></div>
+<div class="item-row"><span class="label">馥華原始</span><span class="val">0.39（偏平滑，因為有輕微 tremor）</span></div>
+</div>
+
+<h3>5.4 📐 座標縮放模式</h3>
+
+<div class="item">
+<h4>⑨ 智能 / 手動模式切換</h4>
+<div class="item-row"><span class="label">智能 (auto)</span><span class="val">用「圓形範圍偵測」結果<strong>自動</strong>計算最佳縮放</span></div>
+<div class="item-row"><span class="label">手動 (manual)</span><span class="val">用兩條 slider <strong>手動</strong>設定上下/左右靈敏度</span></div>
+<div class="item-row"><span class="label">建議</span><span class="val">第一次或剛跑完圓形偵測 → 用智能；想精調 → 切手動</span></div>
+</div>
+
+<div class="item">
+<h4>⑩ 🔧 左右靈敏度 (yaw scale)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">放大 / 縮小馥華頭部<strong>左右轉動的對應範圍</strong></span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">50%（縮小一半）～ 300%（放大三倍），預設 100%</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val"><strong>馥華頭左右轉幅度不大、9 宮格左/右兩排很難碰到</strong> → 調高到 150-250%，少量動作對應較大移動範圍</span></div>
+<div class="item-row"><span class="label">反過來</span><span class="val">頭一動就衝到邊緣 / 太敏感 → 調低到 70-90%</span></div>
+</div>
+
+<div class="item">
+<h4>⑪ 🔧 上下靈敏度 (pitch scale)</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">放大 / 縮小馥華頭部<strong>上下擺動的對應範圍</strong></span></div>
+<div class="item-row"><span class="label">範圍</span><span class="val">50% ～ 300%，預設 100%</span></div>
+<div class="item-row"><span class="label">何時調</span><span class="val"><strong>馥華頭上下擺動幅度不大、9 宮格上/下兩排很難碰到</strong>（特別是高音 La/Si/Do' 區）→ 調高到 150-250%</span></div>
+<div class="item-row"><span class="label">馥華原始</span><span class="val">145%（上下幅度小，所以放大 1.45 倍）</span></div>
+</div>
+
+<div class="callout tip">
+<strong>「上下/左右靈敏度」白話解釋</strong>：把馥華「實際能轉動的範圍」對應到「螢幕上 9 宮格的範圍」。她實際只能轉 30 度但要她碰得到 9 宮格上下兩排 → 上下靈敏度調高，把那 30 度「放大」成螢幕上的 90 度。
+</div>
+
+<h3>5.5 🔍 視覺輔助（協助者用）</h3>
+
+<div class="item">
+<h4>⑫ 顯示觸發圈</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">在攝影機畫面上顯示 9 個圈圈（馥華的觸發區域）</span></div>
+<div class="item-row"><span class="label">何時關</span><span class="val">熟練後想要乾淨畫面 → 關（馥華視障本來就看不到，這純粹給協助者）</span></div>
+</div>
+
+<div class="item">
+<h4>⑬ 顯示面部導引框</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">畫面上顯示一個框框，幫忙確認馥華的臉是否在框內</span></div>
+<div class="item-row"><span class="label">何時關</span><span class="val">表演 / 錄製不想要框框時關</span></div>
+</div>
+
+<div class="item">
+<h4>⑭ 顯示軌跡紅點 &amp; 嘴部偵測</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">顯示頭部追蹤紅點 + 嘴形偵測線（debug 用）</span></div>
+<div class="item-row"><span class="label">何時關</span><span class="val">乾淨畫面時關，不影響功能</span></div>
+</div>
+
+<h3>5.6 💾 設定檔管理</h3>
+
+<div class="item">
+<h4>⑮ 💾 儲存</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">手動把當前所有設定寫到 localStorage + 雲端</span></div>
+<div class="item-row"><span class="label">注意</span><span class="val">平常 slider / 拖拉 / 滾輪都會自動存，這個按鈕是備援</span></div>
+</div>
+
+<div class="item">
+<h4>⑯ 📂 讀取</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">從雲端 + localStorage 重新載入當前 profile（捨棄未存的調整）</span></div>
+</div>
+
+<div class="item">
+<h4>⑰ 📤 匯出 CSV</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">把當前 profile 下載成 CSV 檔（可離線備份 / Email 寄給治療師）</span></div>
+<div class="item-row"><span class="label">檔名格式</span><span class="val"><code>head_tracker_profile_{號碼}_{日期}.csv</code></span></div>
+</div>
+
+<div class="item">
+<h4>⑱ 📥 匯入 CSV</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">把外部 CSV 匯入當前 profile（會覆蓋）</span></div>
+<div class="item-row"><span class="label">何時用</span><span class="val">治療師寄了一份新校正過來 / 從另一台電腦匯出來</span></div>
+</div>
+
+<div class="item">
+<h4>⑲ 🗑️ 重置當前設定</h4>
+<div class="item-row"><span class="label">做什麼</span><span class="val">把當前 profile 清空成空白</span></div>
+<div class="item-row"><span class="label">何時用</span><span class="val">想從零重新校正</span></div>
+<div class="item-row"><span class="label">小心</span><span class="val">執行後當前 profile 沒了，必要請先匯出 CSV 備份，或之後用 <span class="pill amber">📥</span> 從 baseline 還原</span></div>
+</div>
 
 </section>
 
@@ -446,12 +669,15 @@ th { background: #f1f5f9; font-weight: 600; }
 <table>
 <tr><th>狀況</th><th>原因</th><th>處理</th></tr>
 <tr><td>攝影機沒畫面</td><td>瀏覽器權限被擋</td><td>網址列左邊鎖頭 → 攝影機 → 允許 → 重整</td></tr>
-<tr><td>左上 🔴 紅燈</td><td>網路斷或 Firebase 連不上</td><td>檢查 wifi，本地仍可用</td></tr>
-<tr><td>左上 ⚫ 離線</td><td>純本地模式</td><td>網路恢復會自動切回 🟢</td></tr>
+<tr><td>左上 🔴 紅燈</td><td>網路或 Firebase 連不上</td><td>檢查 wifi，本地仍可用</td></tr>
+<tr><td>左上 ⚫ 離線</td><td>純本地模式</td><td>網路恢復會自動變 🟢</td></tr>
 <tr><td>位置全部跑掉</td><td>誤觸或別人覆寫</td><td>切到 <span class="pill gray">2</span>/<span class="pill gray">3</span> → 按 <span class="pill amber">📥</span></td></tr>
-<tr><td>沒聲音</td><td>瀏覽器音效被擋 / Tone.Sampler 載入失敗</td><td>切換樂器到 synth 試試</td></tr>
-<tr><td>反應太慢 / 太靈敏</td><td>smoothing 不對</td><td>校正面板調 🎚️ 靈敏度</td></tr>
-<tr><td>頭歪掉 9 宮格不對</td><td>中心點漂移</td><td>按 🎯 手動設定當前為中心點</td></tr>
+<tr><td>沒聲音</td><td>音效未啟動 / Tone.Sampler 載入失敗</td><td>確認有按過 <strong>▶ 點擊開始</strong>；樂器切換到合成鋼琴試試</td></tr>
+<tr><td>反應太慢 / 太靈敏</td><td>smoothing 不對</td><td>校正面板 → 🎚️ 反應靈敏度</td></tr>
+<tr><td>頭歪掉 9 宮格不對</td><td>中心點漂移</td><td>校正面板 → 🎯 手動設定當前為中心點</td></tr>
+<tr><td>9 宮格邊緣的音碰不到</td><td>頭部活動範圍不足</td><td>校正面板 → 📐 座標縮放 → 上下/左右靈敏度調高</td></tr>
+<tr><td>連彈太快/太慢</td><td>BPM 不對</td><td>彈奏 OR 伴奏面板 → 速度 BPM</td></tr>
+<tr><td>嘴部八度切錯方向</td><td>觸發動作模式相反</td><td>彈奏面板 → 嘴部控制 → 觸發動作切 close / open</td></tr>
 </table>
 
 </section>
@@ -462,19 +688,15 @@ th { background: #f1f5f9; font-weight: 600; }
 <section class="chapter" id="appendix-b">
 <h2>附錄 B：進階（備份 / 多裝置同步）</h2>
 
-<h3>B.1 CSV 匯出備份</h3>
-<p>校正面板 → 💾 設定檔管理 → <strong>📤 匯出 CSV</strong>——下載當前 profile 為 CSV 檔。</p>
-<p>檔名格式：<code>head_tracker_profile_{號碼}_{日期}.csv</code></p>
-
-<h3>B.2 多裝置同步原理</h3>
-<p>所有變更（位置、樂器、音量、BPM 等）會在 1-3 秒內透過 Firebase Firestore 同步到所有開著 app 的裝置。</p>
+<h3>B.1 多裝置同步原理</h3>
+<p>profile 2/3 的所有變更（位置、樂器、音量、BPM 等）會在 1-3 秒內透過 Firebase Firestore 同步到所有開著 app 的裝置。</p>
 <ul>
     <li>治療師在自己筆電上調整 → 馥華家電腦自動收到</li>
     <li>馥華家電腦看到左上 <span class="pill amber">☁️ 套用新設定</span> 按鈕</li>
     <li>協助者按下才真正套用（避免打斷彈奏中）</li>
 </ul>
 
-<h3>B.3 雲端備份結構（給技術人員）</h3>
+<h3>B.2 雲端備份結構</h3>
 <ul>
     <li><code>head_tracker_profiles/1</code> — 馥華原始版（前端鎖定）</li>
     <li><code>head_tracker_profiles/2</code> — 校正 A</li>
@@ -482,15 +704,16 @@ th { background: #f1f5f9; font-weight: 600; }
     <li><code>head_tracker_baselines/original</code> — 永不被覆寫的原始副本</li>
 </ul>
 
-<h3>B.4 GitHub 程式碼</h3>
-<p><a href="https://github.com/m72900024/AI-Head-Motion-Tracker">github.com/m72900024/AI-Head-Motion-Tracker</a></p>
-<p>離線版可從 repo 下載 zip，雙擊 <code>start.command</code>（Mac）或 <code>start-windows.bat</code>（Windows）即可啟動。</p>
+<h3>B.3 離線版下載</h3>
+<p>從 GitHub repo 下載 zip：<a href="https://github.com/m72900024/AI-Head-Motion-Tracker">github.com/m72900024/AI-Head-Motion-Tracker</a></p>
+<p>解壓後雙擊 <code>start.command</code>（Mac）或 <code>start-windows.bat</code>（Windows）自動啟動 local server。</p>
 
 </section>
 
 <hr>
 <p style="text-align:center; color:#94a3b8; font-size:0.85em; margin-top:2em;">
-AI 頭部動作感測器 — 操作手冊 ｜ 2026-05-27 版 ｜ <a href="https://m72900024.github.io/AI-Head-Motion-Tracker/" style="color:#0369a1;">線上版</a>
+AI 頭部動作感測器 — 操作手冊 v2 ｜ 2026-05-27 ｜
+<a href="https://m72900024.github.io/AI-Head-Motion-Tracker/" style="color:#0369a1;">線上版</a>
 </p>
 
 </main>
