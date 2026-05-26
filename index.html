@@ -145,8 +145,8 @@
                 <button onclick="restoreFromBaseline()" class="w-full mt-2 bg-amber-900/50 hover:bg-amber-900 text-amber-200 py-1 px-2 rounded text-xs border border-amber-800" title="把原始馥華設定複製到目前 profile（需先切到 #2 或 #3）">📥 從原始 baseline 還原</button>
             </div>
             
-            <div class="section-title collapsible" data-target="record-calib-body" data-storage-key="collapse-record-calib"><span class="collapse-arrow">▾</span> 🎯 錄製與校正</div>
-            <div id="record-calib-body" class="collapsible-body">
+            <div class="section-title collapsible collapsed" data-target="record-calib-body" data-storage-key="collapse-record-calib"><span class="collapse-arrow">▾</span> 🎯 錄製與校正</div>
+            <div id="record-calib-body" class="collapsible-body collapsed">
             <div class="mode-switch">
                 <button id="mode-rec-btn" onclick="setEditMode(false)" class="active-rec">🔴 錄製位置</button>
                 <button id="mode-edit-btn" onclick="setEditMode(true)">🔵 編輯參數</button>
@@ -1034,15 +1034,15 @@
                 const body = document.getElementById(targetId);
                 if (!body) return;
 
-                // 還原儲存的收折狀態
-                let collapsed = false;
+                // 預設取 HTML 標的 .collapsed；localStorage 偏好可覆蓋（'0'=展開, '1'=收折）
+                let collapsed = title.classList.contains('collapsed') || body.classList.contains('collapsed');
                 try {
-                    if (storageKey && localStorage.getItem(storageKey) === '1') collapsed = true;
+                    const saved = storageKey ? localStorage.getItem(storageKey) : null;
+                    if (saved === '1') collapsed = true;
+                    else if (saved === '0') collapsed = false;
                 } catch (e) {}
-                if (collapsed) {
-                    title.classList.add('collapsed');
-                    body.classList.add('collapsed');
-                }
+                title.classList.toggle('collapsed', collapsed);
+                body.classList.toggle('collapsed', collapsed);
 
                 title.addEventListener('click', () => {
                     const isCollapsed = title.classList.toggle('collapsed');
