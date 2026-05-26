@@ -349,10 +349,10 @@
             <!-- 連彈模式（頭停住自動重複觸發）-->
             <div class="section-title">🔁 連彈行為</div>
             <div class="flex items-center gap-2 mt-2 bg-rose-700/50 p-1 rounded border border-rose-600">
-                <input type="checkbox" id="repeat-check" class="w-4 h-4 accent-rose-500 cursor-pointer">
+                <input type="checkbox" id="repeat-check" class="w-4 h-4 accent-rose-500 cursor-pointer" checked>
                 <label for="repeat-check" class="text-xs text-gray-200 cursor-pointer font-bold flex-1">🔁 連彈模式 (頭停住自動重複)</label>
             </div>
-            <div id="repeat-info" class="mt-1 hidden">
+            <div id="repeat-info" class="mt-1">
                 <p class="text-[0.55rem] text-gray-500">停留在同一區域會跟隨 BPM 自動重複觸發音符</p>
             </div>
 
@@ -844,9 +844,17 @@
             accompaniment.setWaltzMode(e.target.checked);
         });
 
-        // 連彈模式
+        // 連彈模式（預設打開，localStorage 持久化）
         const repeatCheck = document.getElementById('repeat-check');
         const repeatInfo = document.getElementById('repeat-info');
+        try {
+            const savedRepeat = localStorage.getItem('head-tracker-repeat-mode');
+            // 預設 on；若 localStorage 明確為 '0' 才關閉
+            if (savedRepeat === '0') {
+                repeatCheck.checked = false;
+                repeatInfo.classList.add('hidden');
+            }
+        } catch (e) {}
         repeatCheck.addEventListener('change', (e) => {
             faceTracker.setRepeatMode(e.target.checked);
             if (e.target.checked) {
@@ -854,7 +862,12 @@
             } else {
                 repeatInfo.classList.add('hidden');
             }
+            try { localStorage.setItem('head-tracker-repeat-mode', e.target.checked ? '1' : '0'); } catch (err) {}
         });
+        // 啟動時把預設 checked 狀態同步到 faceTracker（change event 不會自動觸發 init）
+        if (repeatCheck.checked) {
+            faceTracker.setRepeatMode(true);
+        }
 
         // BPM 變更時同步連彈速度
         bpmSlider.addEventListener('input', (e) => {
