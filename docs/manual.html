@@ -6,10 +6,15 @@
 <style>
 /* ============ 基本排版 ============ */
 * { box-sizing: border-box; }
+html { --font-scale: 1; }
+html.font-medium { --font-scale: 1.25; }
+html.font-large  { --font-scale: 1.5; }
+html.font-xlarge { --font-scale: 1.85; }
 html, body {
     margin: 0; padding: 0;
     font-family: -apple-system, "Microsoft JhengHei", "PingFang TC", "Noto Sans CJK TC", sans-serif;
-    color: #1f2937; line-height: 1.6; font-size: 13.5px;
+    color: #1f2937; line-height: 1.6;
+    font-size: calc(13.5px * var(--font-scale));
     background: #f5f5f5;
 }
 main { max-width: 760px; margin: 0 auto; padding: 30px 40px; background: #fff; }
@@ -102,12 +107,29 @@ th { background: #f1f5f9; font-weight: 600; }
 }
 .emergency strong { color: #991b1b; }
 
-/* ============ 列印（A4）============ */
+/* ============ 列印（A4，大字體版）============ */
 @media print {
-    html, body { background: #fff; font-size: 11.5pt; }
+    html, body { background: #fff; font-size: 13.5pt; line-height: 1.55; }
     main { max-width: 100%; padding: 0; }
     a { color: inherit; text-decoration: none; }
     .no-print { display: none !important; }
+
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.55rem; }
+    h3 { font-size: 1.25rem; }
+    h4 { font-size: 1.08rem; }
+    table { font-size: 1em; }
+    th, td { padding: 7px 9px; }
+    .item { padding: 12px 16px; margin: 14px 0; }
+    .item-row { font-size: 1em; margin: 5px 0; }
+    .item-row .label { width: 80px; }
+    .callout { font-size: 1em; padding: 12px 16px; }
+    .toc { font-size: 1.02em; }
+    .speed-card h1 { font-size: 1.75rem; }
+    .speed-card-block h4 { font-size: 1.08rem; }
+    .speed-card-block ul { font-size: 1em; }
+    .pill { font-size: 0.9em; }
+    code { font-size: 0.95em; }
 
     section.chapter { page-break-before: always; }
     section.chapter:first-of-type { page-break-before: auto; }
@@ -116,7 +138,7 @@ th { background: #f1f5f9; font-weight: 600; }
     .callout, .step, table, .item { page-break-inside: avoid; }
     .toc { page-break-after: always; }
 
-    @page { size: A4; margin: 18mm 16mm; }
+    @page { size: A4; margin: 16mm 14mm; }
 }
 
 .toolbar {
@@ -131,6 +153,18 @@ th { background: #f1f5f9; font-weight: 600; }
 }
 .toolbar button:hover { background: #e0f2fe; }
 .toolbar-spacer { flex: 1; }
+.font-toggle { display: flex; gap: 2px; align-items: center; background: rgba(255,255,255,0.15); border-radius: 4px; padding: 2px; }
+.font-toggle .label { color: #cbd5e1; font-size: 0.8em; padding: 0 6px; }
+.font-toggle button {
+    background: transparent; color: #fff; border: 1px solid transparent;
+    padding: 2px 8px; line-height: 1; font-weight: bold; cursor: pointer; border-radius: 3px;
+}
+.font-toggle button:hover { background: rgba(255,255,255,0.2); }
+.font-toggle button.active { background: #fff; color: #0c4a6e; }
+.font-toggle .s { font-size: 0.75em; }
+.font-toggle .m { font-size: 0.95em; }
+.font-toggle .l { font-size: 1.2em; }
+.font-toggle .xl { font-size: 1.45em; }
 </style>
 </head>
 <body>
@@ -138,9 +172,36 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="toolbar no-print">
     <strong>🎹 AI 頭部動作感測器 — 操作手冊</strong>
     <span class="toolbar-spacer"></span>
+    <div class="font-toggle" role="group" aria-label="字體大小">
+        <span class="label">字體</span>
+        <button class="s active" onclick="setManualFont('small')" title="小">A</button>
+        <button class="m" onclick="setManualFont('medium')" title="中">A</button>
+        <button class="l" onclick="setManualFont('large')" title="大">A</button>
+        <button class="xl" onclick="setManualFont('xlarge')" title="特大">A</button>
+    </div>
     <button onclick="window.print()">🖨️ 列印 / 存成 PDF</button>
     <a href="../" style="color:#fff; text-decoration:none; font-size:0.88em;">← 回 App</a>
 </div>
+
+<script>
+function setManualFont(size) {
+    const valid = ['small','medium','large','xlarge'];
+    if (!valid.includes(size)) return;
+    document.documentElement.classList.remove('font-small','font-medium','font-large','font-xlarge');
+    document.documentElement.classList.add('font-' + size);
+    document.querySelectorAll('.font-toggle button').forEach(b => b.classList.remove('active'));
+    const cls = {small:'s', medium:'m', large:'l', xlarge:'xl'}[size];
+    const btn = document.querySelector('.font-toggle button.' + cls);
+    if (btn) btn.classList.add('active');
+    try { localStorage.setItem('manual-font-size', size); } catch (e) {}
+}
+(function initManualFont() {
+    try {
+        const saved = localStorage.getItem('manual-font-size');
+        if (saved) setManualFont(saved);
+    } catch (e) {}
+})();
+</script>
 
 <main>
 
@@ -206,7 +267,16 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="toc">
     <ol>
         <li><a href="#ch1">馥華怎麼用這個 App</a></li>
-        <li><a href="#ch2">協助者的日常操作（左上常駐區）</a></li>
+        <li><a href="#ch-hardware">硬體設定（每次使用前）</a>
+            <ul>
+                <li>三腳架 / 鏡頭高度 / 1m 距離 / USB 連接</li>
+            </ul>
+        </li>
+        <li><a href="#ch2">協助者的日常操作（左上常駐區）</a>
+            <ul>
+                <li>軟體啟動 / 左上元素 / 設定檔差別 / 字體 / 三主面板</li>
+            </ul>
+        </li>
         <li><a href="#ch3">🎤 彈奏設定（逐項說明）</a>
             <ul>
                 <li>主旋律：回中重置 / 樂器 / 音量 / 長度</li>
@@ -270,18 +340,49 @@ th { background: #f1f5f9; font-weight: 600; }
 </section>
 
 <!-- ============================================================ -->
-<!-- 第 2 章                                                        -->
+<!-- 第 2 章 — 硬體設定                                              -->
+<!-- ============================================================ -->
+<section class="chapter" id="ch-hardware">
+<h2>2. 硬體設定（每次使用前）</h2>
+
+<p>馥華坐定前先擺好攝影機。鏡頭沒對好整個追蹤都會偏。</p>
+
+<div class="step"><div class="step-num">1</div><div class="step-body">將鏡頭安裝到<strong>三腳架</strong>上</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-body">把三腳架升降桿拉到<strong>標記的高度</strong>（腳架桿上有貼標示）</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-body">三腳架放在馥華<strong>前方約 1 公尺</strong>處</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-body">鏡頭 <strong>USB 連接</strong>電腦</div></div>
+<div class="step"><div class="step-num">5</div><div class="step-body">打開鏡頭電源（如果有開關）</div></div>
+
+<div class="callout tip">
+<strong>標記高度的意義</strong>：三腳架升降桿上的標記是<strong>馥華視線高度</strong>，這是先前校正時記下的最佳鏡頭位置。每次拉回同一高度，9 宮格就會跟記錄的位置對齊，不用重做校正。
+</div>
+
+<div class="callout warn">
+<strong>注意</strong>：如果三腳架高度跑掉、放錯距離、或馥華坐姿改變很多，<strong>9 宮格位置會跑掉</strong>。處理方式：
+<ul style="margin: 0.4em 0;">
+<li>輕微偏差 → 校正面板 → 🎯 手動設定當前為中心點</li>
+<li>整個跑掉 → 校正面板 → 🌀 重新跑圓形範圍偵測</li>
+</ul>
+</div>
+
+<p style="margin-top:1.2em;">硬體就緒後 → 進入第 3 章軟體啟動。</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- 第 3 章                                                        -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch2">
-<h2>2. 協助者的日常操作（左上常駐區）</h2>
+<h2>3. 協助者的日常操作（左上常駐區）</h2>
 
-<h3>2.1 啟動 App</h3>
-<div class="step"><div class="step-num">1</div><div class="step-body">瀏覽器打開 <code>https://m72900024.github.io/AI-Head-Motion-Tracker/</code></div></div>
+<h3>3.1 軟體啟動（前面硬體準備好之後）</h3>
+<div class="step"><div class="step-num">1</div><div class="step-body">雙擊桌面捷徑 <strong>「頭部追蹤鋼琴」</strong>（或瀏覽器手動打開 <code>https://m72900024.github.io/AI-Head-Motion-Tracker/</code>）</div></div>
 <div class="step"><div class="step-num">2</div><div class="step-body">按中央 <strong>「▶ 點擊開始 (啟動音效)」</strong></div></div>
-<div class="step"><div class="step-num">3</div><div class="step-body">允許攝影機權限</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-body">允許攝影機權限（瀏覽器跳出對話框時）</div></div>
 <div class="step"><div class="step-num">4</div><div class="step-body">等左上 <span class="pill green">🟢 已同步</span></div></div>
+<div class="step"><div class="step-num">5</div><div class="step-body">左上選擇要使用的設定檔 <span class="pill blue">🔒 1</span> / <span class="pill gray">2</span> / <span class="pill gray">3</span></div></div>
 
-<h3>2.2 左上元素一覽</h3>
+<h3>3.2 左上元素一覽</h3>
 <table>
 <tr><th>元素</th><th>意義</th></tr>
 <tr><td><span class="pill green">🟢 已同步</span></td><td>雲端正常，所有設定即時備份</td></tr>
@@ -293,7 +394,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <tr><td><span class="pill amber">☁️ 套用新設定</span></td><td>有遠端更新時出現</td></tr>
 </table>
 
-<h3>2.3 三個設定檔的差別</h3>
+<h3>3.3 三個設定檔的差別</h3>
 <table>
 <tr><th>Profile</th><th>用途</th><th>能否覆寫</th><th>雲端同步</th></tr>
 <tr><td><span class="pill blue">🔒 1 原始</span></td><td>馥華初始 CSV 校正</td><td>❌ 鎖定</td><td>不上雲</td></tr>
@@ -301,15 +402,15 @@ th { background: #f1f5f9; font-weight: 600; }
 <tr><td><span class="pill gray">3 校正 B</span></td><td>備用 / 實驗</td><td>✅</td><td>✅</td></tr>
 </table>
 
-<h3>2.4 字體放大</h3>
+<h3>3.4 字體放大</h3>
 <p>頂部中央三顆 <span class="kbd">A</span>（小/中/大）——給視力差的協助者，馥華本人視障無感。狀態存瀏覽器，下次保持。</p>
 
-<h3>2.5 三個主面板按鈕（右下角）</h3>
+<h3>3.5 三個主面板按鈕（右下角）</h3>
 <table>
 <tr><th>按鈕</th><th>內容</th><th>章節</th></tr>
-<tr><td><span class="pill purple">🎤 彈奏設定</span></td><td>主旋律音色 / 嘴部 / 連彈</td><td>→ 第 3 章</td></tr>
-<tr><td><span class="pill rose">🎼 伴奏設定</span></td><td>自動和弦 / 節拍器 / 旋律示範</td><td>→ 第 4 章</td></tr>
-<tr><td><span class="pill gray">⚙️ 校正與設定</span></td><td>位置校正 / 靈敏度 / 縮放 / 視覺輔助 / CSV</td><td>→ 第 5 章</td></tr>
+<tr><td><span class="pill purple">🎤 彈奏設定</span></td><td>主旋律音色 / 嘴部 / 連彈</td><td>→ 第 4 章</td></tr>
+<tr><td><span class="pill rose">🎼 伴奏設定</span></td><td>自動和弦 / 節拍器 / 旋律示範</td><td>→ 第 5 章</td></tr>
+<tr><td><span class="pill gray">⚙️ 校正與設定</span></td><td>位置校正 / 靈敏度 / 縮放 / 視覺輔助 / CSV</td><td>→ 第 6 章</td></tr>
 </table>
 
 <div class="callout tip">
@@ -322,11 +423,11 @@ th { background: #f1f5f9; font-weight: 600; }
 <!-- 第 3 章 — 彈奏設定                                              -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch3">
-<h2>3. 🎤 彈奏設定（逐項說明）</h2>
+<h2>4. 🎤 彈奏設定（逐項說明）</h2>
 
 <p>打開方式：右下 <span class="pill purple">🎤 彈奏設定</span> 按鈕。</p>
 
-<h3>3.1 🎹 主旋律 (Melody)</h3>
+<h3>4.1 🎹 主旋律 (Melody)</h3>
 
 <div class="item">
 <h4>① 回中重置 (單次觸發)</h4>
@@ -363,7 +464,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="item-row"><span class="label">建議</span><span class="val">配連彈模式 = 1.0；獨彈 = 1.5-2.0</span></div>
 </div>
 
-<h3>3.2 👄 嘴部控制 (八度切換)</h3>
+<h3>4.2 👄 嘴部控制 (八度切換)</h3>
 
 <div class="item">
 <h4>⑤ 啟用嘴部八度控制</h4>
@@ -382,7 +483,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="item-row"><span class="label">何時調</span><span class="val">馥華自然嘴形是張開的 → 用「閉嘴觸發」；自然嘴形是閉合的 → 用「張嘴觸發」</span></div>
 </div>
 
-<h3>3.3 🔁 連彈行為</h3>
+<h3>4.3 🔁 連彈行為</h3>
 
 <div class="item">
 <h4>⑦ 連彈模式 (頭停住自動重複)</h4>
@@ -406,7 +507,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <!-- 第 4 章 — 伴奏設定                                              -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch4">
-<h2>4. 🎼 伴奏設定（逐項說明）</h2>
+<h2>5. 🎼 伴奏設定（逐項說明）</h2>
 
 <p>打開方式：右下 <span class="pill rose">🎼 伴奏設定</span> 按鈕。</p>
 
@@ -505,11 +606,11 @@ th { background: #f1f5f9; font-weight: 600; }
 <!-- 第 5 章 — 校正與設定                                            -->
 <!-- ============================================================ -->
 <section class="chapter" id="ch5">
-<h2>5. ⚙️ 校正與設定（逐項說明）</h2>
+<h2>6. ⚙️ 校正與設定（逐項說明）</h2>
 
 <p>打開方式：右下 <span class="pill gray">⚙️ 校正與設定</span> 按鈕。共 6 區塊：設定檔 / 錄製校正 / 靈敏度 / 座標縮放 / 視覺輔助 / 設定檔管理。</p>
 
-<h3>5.1 📁 設定檔切換 + baseline 還原</h3>
+<h3>6.1 📁 設定檔切換 + baseline 還原</h3>
 
 <div class="item">
 <h4>① 設定檔按鈕 1 / 2 / 3</h4>
@@ -524,7 +625,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="item-row"><span class="label">限制</span><span class="val">必須先切到 <span class="pill gray">2</span> 或 <span class="pill gray">3</span>，在 <span class="pill blue">🔒 1</span> 上會被拒絕</span></div>
 </div>
 
-<h3>5.2 🎯 錄製與校正（預設收折，點 title 展開）</h3>
+<h3>6.2 🎯 錄製與校正（預設收折，點 title 展開）</h3>
 
 <div class="item">
 <h4>③ 🔴 錄製位置 / 🔵 編輯參數 模式切換</h4>
@@ -564,7 +665,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <strong>⚠️ Profile 鎖定提醒</strong>：在 <span class="pill blue">🔒 1</span> 上做的任何錄製 / 拖拉 / 編輯都<strong>不會上雲</strong>，重整就消失。要保留請先切到 <span class="pill gray">2</span> 或 <span class="pill gray">3</span>。
 </div>
 
-<h3>5.3 🎚️ 反應靈敏度</h3>
+<h3>6.3 🎚️ 反應靈敏度</h3>
 
 <div class="item">
 <h4>⑧ 反應靈敏度 (smoothing)</h4>
@@ -577,7 +678,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="item-row"><span class="label">馥華原始</span><span class="val">0.39（偏平滑，因為有輕微 tremor）</span></div>
 </div>
 
-<h3>5.4 📐 座標縮放模式</h3>
+<h3>6.4 📐 座標縮放模式</h3>
 
 <div class="item">
 <h4>⑨ 智能 / 手動模式切換</h4>
@@ -606,7 +707,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <strong>「上下/左右靈敏度」白話解釋</strong>：把馥華「實際能轉動的範圍」對應到「螢幕上 9 宮格的範圍」。她實際只能轉 30 度但要她碰得到 9 宮格上下兩排 → 上下靈敏度調高，把那 30 度「放大」成螢幕上的 90 度。
 </div>
 
-<h3>5.5 🔍 視覺輔助（協助者用）</h3>
+<h3>6.5 🔍 視覺輔助（協助者用）</h3>
 
 <div class="item">
 <h4>⑫ 顯示觸發圈</h4>
@@ -626,7 +727,7 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="item-row"><span class="label">何時關</span><span class="val">乾淨畫面時關，不影響功能</span></div>
 </div>
 
-<h3>5.6 💾 設定檔管理</h3>
+<h3>6.6 💾 設定檔管理</h3>
 
 <div class="item">
 <h4>⑮ 💾 儲存</h4>
