@@ -6,10 +6,15 @@
 <style>
 /* ============ 基本排版 ============ */
 * { box-sizing: border-box; }
+html { --font-scale: 1; }
+html.font-medium { --font-scale: 1.25; }
+html.font-large  { --font-scale: 1.5; }
+html.font-xlarge { --font-scale: 1.85; }
 html, body {
     margin: 0; padding: 0;
     font-family: -apple-system, "Microsoft JhengHei", "PingFang TC", "Noto Sans CJK TC", sans-serif;
-    color: #1f2937; line-height: 1.6; font-size: 13.5px;
+    color: #1f2937; line-height: 1.6;
+    font-size: calc(13.5px * var(--font-scale));
     background: #f5f5f5;
 }
 main { max-width: 760px; margin: 0 auto; padding: 30px 40px; background: #fff; }
@@ -148,6 +153,18 @@ th { background: #f1f5f9; font-weight: 600; }
 }
 .toolbar button:hover { background: #e0f2fe; }
 .toolbar-spacer { flex: 1; }
+.font-toggle { display: flex; gap: 2px; align-items: center; background: rgba(255,255,255,0.15); border-radius: 4px; padding: 2px; }
+.font-toggle .label { color: #cbd5e1; font-size: 0.8em; padding: 0 6px; }
+.font-toggle button {
+    background: transparent; color: #fff; border: 1px solid transparent;
+    padding: 2px 8px; line-height: 1; font-weight: bold; cursor: pointer; border-radius: 3px;
+}
+.font-toggle button:hover { background: rgba(255,255,255,0.2); }
+.font-toggle button.active { background: #fff; color: #0c4a6e; }
+.font-toggle .s { font-size: 0.75em; }
+.font-toggle .m { font-size: 0.95em; }
+.font-toggle .l { font-size: 1.2em; }
+.font-toggle .xl { font-size: 1.45em; }
 </style>
 </head>
 <body>
@@ -155,9 +172,36 @@ th { background: #f1f5f9; font-weight: 600; }
 <div class="toolbar no-print">
     <strong>🎹 AI 頭部動作感測器 — 操作手冊</strong>
     <span class="toolbar-spacer"></span>
+    <div class="font-toggle" role="group" aria-label="字體大小">
+        <span class="label">字體</span>
+        <button class="s active" onclick="setManualFont('small')" title="小">A</button>
+        <button class="m" onclick="setManualFont('medium')" title="中">A</button>
+        <button class="l" onclick="setManualFont('large')" title="大">A</button>
+        <button class="xl" onclick="setManualFont('xlarge')" title="特大">A</button>
+    </div>
     <button onclick="window.print()">🖨️ 列印 / 存成 PDF</button>
     <a href="../" style="color:#fff; text-decoration:none; font-size:0.88em;">← 回 App</a>
 </div>
+
+<script>
+function setManualFont(size) {
+    const valid = ['small','medium','large','xlarge'];
+    if (!valid.includes(size)) return;
+    document.documentElement.classList.remove('font-small','font-medium','font-large','font-xlarge');
+    document.documentElement.classList.add('font-' + size);
+    document.querySelectorAll('.font-toggle button').forEach(b => b.classList.remove('active'));
+    const cls = {small:'s', medium:'m', large:'l', xlarge:'xl'}[size];
+    const btn = document.querySelector('.font-toggle button.' + cls);
+    if (btn) btn.classList.add('active');
+    try { localStorage.setItem('manual-font-size', size); } catch (e) {}
+}
+(function initManualFont() {
+    try {
+        const saved = localStorage.getItem('manual-font-size');
+        if (saved) setManualFont(saved);
+    } catch (e) {}
+})();
+</script>
 
 <main>
 
@@ -304,17 +348,17 @@ th { background: #f1f5f9; font-weight: 600; }
 <p>馥華坐定前先擺好攝影機。鏡頭沒對好整個追蹤都會偏。</p>
 
 <div class="step"><div class="step-num">1</div><div class="step-body">將鏡頭安裝到<strong>三腳架</strong>上</div></div>
-<div class="step"><div class="step-num">2</div><div class="step-body">調整三腳架高度到<strong>地面標記位置</strong>（馥華視線高度）</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-body">把三腳架升降桿拉到<strong>標記的高度</strong>（腳架桿上有貼標示）</div></div>
 <div class="step"><div class="step-num">3</div><div class="step-body">三腳架放在馥華<strong>前方約 1 公尺</strong>處</div></div>
 <div class="step"><div class="step-num">4</div><div class="step-body">鏡頭 <strong>USB 連接</strong>電腦</div></div>
 <div class="step"><div class="step-num">5</div><div class="step-body">打開鏡頭電源（如果有開關）</div></div>
 
 <div class="callout tip">
-<strong>標記位置的意義</strong>：地面標記是先前校正時馥華的最佳坐姿距離。三腳架每次放回標記點就不用重做校正，所有設定（profile 1/2/3）才會跟記錄的位置對齊。
+<strong>標記高度的意義</strong>：三腳架升降桿上的標記是<strong>馥華視線高度</strong>，這是先前校正時記下的最佳鏡頭位置。每次拉回同一高度，9 宮格就會跟記錄的位置對齊，不用重做校正。
 </div>
 
 <div class="callout warn">
-<strong>注意</strong>：如果三腳架位置變了、或馥華坐姿改變很多，<strong>9 宮格位置會跑掉</strong>。處理方式：
+<strong>注意</strong>：如果三腳架高度跑掉、放錯距離、或馥華坐姿改變很多，<strong>9 宮格位置會跑掉</strong>。處理方式：
 <ul style="margin: 0.4em 0;">
 <li>輕微偏差 → 校正面板 → 🎯 手動設定當前為中心點</li>
 <li>整個跑掉 → 校正面板 → 🌀 重新跑圓形範圍偵測</li>
