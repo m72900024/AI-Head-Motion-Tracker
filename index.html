@@ -145,7 +145,8 @@
                 <button onclick="restoreFromBaseline()" class="w-full mt-2 bg-amber-900/50 hover:bg-amber-900 text-amber-200 py-1 px-2 rounded text-xs border border-amber-800" title="把原始馥華設定複製到目前 profile（需先切到 #2 或 #3）">📥 從原始 baseline 還原</button>
             </div>
             
-            <div class="section-title">🎯 錄製與校正</div>
+            <div class="section-title collapsible" data-target="record-calib-body" data-storage-key="collapse-record-calib"><span class="collapse-arrow">▾</span> 🎯 錄製與校正</div>
+            <div id="record-calib-body" class="collapsible-body">
             <div class="mode-switch">
                 <button id="mode-rec-btn" onclick="setEditMode(false)" class="active-rec">🔴 錄製位置</button>
                 <button id="mode-edit-btn" onclick="setEditMode(true)">🔵 編輯參數</button>
@@ -212,6 +213,7 @@
                     <span id="radius-val" class="text-xs text-gray-300 w-6">40</span>
                 </div>
             </div>
+            </div><!-- /record-calib-body -->
 
             <div class="section-title">🎚️ 靈敏度</div>
             <div class="mt-2">
@@ -1009,6 +1011,34 @@
                 const saved = localStorage.getItem('head-tracker-font-size');
                 if (saved) setFontSize(saved);
             } catch (e) {}
+        })();
+
+        // Section 收折（.section-title.collapsible + data-target + data-storage-key）
+        (function initCollapsibles() {
+            document.querySelectorAll('.section-title.collapsible').forEach(title => {
+                const targetId = title.dataset.target;
+                const storageKey = title.dataset.storageKey;
+                const body = document.getElementById(targetId);
+                if (!body) return;
+
+                // 還原儲存的收折狀態
+                let collapsed = false;
+                try {
+                    if (storageKey && localStorage.getItem(storageKey) === '1') collapsed = true;
+                } catch (e) {}
+                if (collapsed) {
+                    title.classList.add('collapsed');
+                    body.classList.add('collapsed');
+                }
+
+                title.addEventListener('click', () => {
+                    const isCollapsed = title.classList.toggle('collapsed');
+                    body.classList.toggle('collapsed', isCollapsed);
+                    try {
+                        if (storageKey) localStorage.setItem(storageKey, isCollapsed ? '1' : '0');
+                    } catch (e) {}
+                });
+            });
         })();
 
         function toggleDebug() {
