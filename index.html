@@ -598,6 +598,10 @@
             onInstrumentChange: (inst) => { playNote(523.25, null, true); },
             onVolumeChange: (vol) => { playNote(523.25, null, true); },
             onPreviewNote: (pointId) => { playNote(0, pointId, true); },
+            onBpmLoad: (bpm) => {
+                if (typeof accompaniment !== 'undefined') accompaniment.setBpm(bpm);
+                if (typeof faceTracker !== 'undefined') faceTracker.setRepeatBpm(bpm);
+            },
             getSelectedPointId: () => uiController ? uiController.getSelectedPointId() : null
         });
 
@@ -755,12 +759,14 @@
             const value = parseInt(e.target.value);
             bpmVal.innerText = value;
             accompaniment.setBpm(value);
+            calibrationSystem.bpm = value;
             // 同步鏡像 slider 顯示（避免重複觸發 event）
             if (bpmSliderMirror && bpmSliderMirror.value !== e.target.value) {
                 bpmSliderMirror.value = value;
                 bpmValMirror.innerText = value;
             }
         });
+        bpmSlider.addEventListener('change', () => calibrationSystem.saveConfig());
         // 鏡像 slider：改值時 forward 到本尊 slider 並 dispatch event（讓既有處理鏈一次跑完）
         if (bpmSliderMirror) {
             bpmSliderMirror.addEventListener('input', (e) => {
