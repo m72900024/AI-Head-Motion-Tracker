@@ -16,6 +16,9 @@ class CloudSync {
         this.uploadDebounceTimer = null;
         this.onRemoteUpdate = null; // 外部設定的「遠端有新版」callback
         this.suppressNextSnapshot = false; // 自己 write 完後第一個 snapshot 不算「遠端改」
+        this.HISTORY_CAP = 50;
+        this.HISTORY_TRIM_EVERY = 10; // 每 10 次 history 寫入才 trim 一次
+        this.historyWriteCounter = 0;
     }
 
     init() {
@@ -73,12 +76,57 @@ class CloudSync {
                 .then(() => {
                     this.lastUploadAt = Date.now();
                     this._setStatus('synced', '已同步雲端');
+                    // 並行寫一筆 history（fire-and-forget）
+                    this.uploadHistory(profileIndex, config, 'auto-save').catch(() => {});
                 })
                 .catch(e => {
                     console.warn('[CloudSync] upload failed', e);
                     this._setStatus('error', '雲端寫入失敗（本地已存）');
                 });
         }, 800);
+    }
+
+    // 寫一筆 history 紀錄（snapshot + timestamp + by + reason）
+    // 預設 fire-and-forget；可 await
+    async uploadHistory(profileIndex, config, reason) {
+        if (!this.db) return;
+        try {
+            const ref = this.db.collection(this.collection).doc(String(profileIndex)).collection('history');
+            await ref.add({
+                snapshot: config,
+                takenAt: firebase.firestore.FieldValue.serverTimestamp(),
+                by: this._whoami(),
+                reason: reason || 'auto-save'
+            });
+            this.historyWriteCounter++;
+            // 每 HISTORY_TRIM_EVERY 次或手動 snapshot 就 trim
+            if (this.historyWriteCounter >= this.HISTORY_TRIM_EVERY || reason === 'manual') {
+                this.historyWriteCounter = 0;
+                this._trimHistory(profileIndex).catch(() => {});
+            }
+        } catch (e) {
+            console.warn('[CloudSync] uploadHistory failed', e);
+            throw e;
+        }
+    }
+
+    // 把 history 超過 HISTORY_CAP 的最舊筆數刪掉
+    async _trimHistory(profileIndex) {
+        if (!this.db) return;
+        try {
+            const ref = this.db.collection(this.collection).doc(String(profileIndex)).collection('history');
+            // 拉最新 HISTORY_CAP + 10 筆，判斷有沒有超過上限
+            const snap = await ref.orderBy('takenAt', 'desc').limit(this.HISTORY_CAP + 10).get();
+            if (snap.size > this.HISTORY_CAP) {
+                const docsToDelete = snap.docs.slice(this.HISTORY_CAP);
+                const batch = this.db.batch();
+                docsToDelete.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+                console.log(`[CloudSync] trimmed ${docsToDelete.length} old history entries from profile ${profileIndex}`);
+            }
+        } catch (e) {
+            console.warn('[CloudSync] trim failed', e);
+        }
     }
 
     // 訂閱遠端變更

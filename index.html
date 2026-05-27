@@ -115,10 +115,11 @@
 
         <!-- 左上常駐 profile 切換器（同步至校正面板內的版本）-->
         <div class="profile-pills" role="group" aria-label="設定檔切換">
-            <button id="profile-pill-1" class="profile-pill active" onclick="switchProfile(1)" title="原始馥華設定（鎖定，不會儲存變更）">🔒 1</button>
-            <button id="profile-pill-2" class="profile-pill" onclick="switchProfile(2)" title="校正 A（可自由編輯，雲端同步）">2</button>
+            <button id="profile-pill-1" class="profile-pill" onclick="switchProfile(1)" title="鎖定的 baseline（不會儲存變更）">🔒 1</button>
+            <button id="profile-pill-2" class="profile-pill active" onclick="switchProfile(2)" title="校正 A（預設使用，可自由編輯，雲端同步）">2</button>
             <button id="profile-pill-3" class="profile-pill" onclick="switchProfile(3)" title="校正 B（可自由編輯，雲端同步）">3</button>
             <button class="profile-pill-restore" onclick="restoreFromBaseline()" title="從原始 baseline 還原到當前 profile（需先切到 #2 或 #3）">📥</button>
+            <button class="profile-pill-snapshot" onclick="snapshotProfile()" title="📸 標記當前版本（手動快照，未來可從歷程還原）">📸</button>
         </div>
 
         <!-- 操作手冊連結（新分頁開啟）-->
@@ -141,8 +142,8 @@
             <div class="mb-3 pb-2">
                 <label class="text-xs text-blue-400 block mb-2 font-bold">📁 設定檔 (Profile)</label>
                 <div class="flex gap-2">
-                    <button onclick="switchProfile(1)" id="profile-btn-1" class="profile-btn active" title="原始馥華設定，鎖定不可寫">🔒 1 原始</button>
-                    <button onclick="switchProfile(2)" id="profile-btn-2" class="profile-btn" title="校正 A，可自由編輯">2 校正A</button>
+                    <button onclick="switchProfile(1)" id="profile-btn-1" class="profile-btn" title="鎖定 baseline，不可寫">🔒 1 原始</button>
+                    <button onclick="switchProfile(2)" id="profile-btn-2" class="profile-btn active" title="校正 A，預設使用、可編輯">2 校正A</button>
                     <button onclick="switchProfile(3)" id="profile-btn-3" class="profile-btn" title="校正 B，可自由編輯">3 校正B</button>
                 </div>
                 <button onclick="restoreFromBaseline()" class="w-full mt-2 bg-amber-900/50 hover:bg-amber-900 text-amber-200 py-1 px-2 rounded text-xs border border-amber-800" title="把原始馥華設定複製到目前 profile（需先切到 #2 或 #3）">📥 從原始 baseline 還原</button>
@@ -609,6 +610,8 @@
         window.applyRemoteProfile = () => calibrationSystem.applyPendingRemote();
         // 全域函式：「📥 從原始 baseline 還原」按鈕呼叫
         window.restoreFromBaseline = () => calibrationSystem.restoreFromBaseline();
+        // 全域函式：「📸 標記當前版本」按鈕呼叫
+        window.snapshotProfile = () => calibrationSystem.manualSnapshot();
         
         // Initialize UIController
         uiController = new UIController({

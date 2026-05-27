@@ -143,6 +143,12 @@ body.font-large .side-panel { --font-scale: 1.5; }
     margin-left: 4px; font-family: inherit;
 }
 .profile-pill-restore:hover { background: rgba(217, 119, 6, 0.6); color: #fff; }
+.profile-pill-snapshot {
+    background: rgba(16, 185, 129, 0.3); border: 1px solid #10b981; color: #6ee7b7;
+    cursor: pointer; border-radius: 4px; padding: 3px 8px; font-size: 0.75rem;
+    margin-left: 2px; font-family: inherit;
+}
+.profile-pill-snapshot:hover { background: rgba(16, 185, 129, 0.6); color: #fff; }
 .cloud-apply-btn:hover { background: #fcd34d; }
 @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }

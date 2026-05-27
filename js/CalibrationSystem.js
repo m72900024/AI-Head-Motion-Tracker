@@ -36,7 +36,7 @@ class CalibrationSystem {
         
         // Storage
         this.STORAGE_KEY_PREFIX = 'head_tracker_config_v11_profile_';
-        this.currentProfileIndex = 1;
+        this.currentProfileIndex = 2;  // 預設打開 profile 2（自由編輯版），#1 是鎖定 baseline
 
         // BPM（連彈速度 / 伴奏 / 節拍器共用，存入 profile）
         this.bpm = 100;
@@ -824,6 +824,37 @@ class CalibrationSystem {
         if (index === 1 && this.config.showFeedback) {
             setTimeout(() => this.config.showFeedback(`🔒 #1 是原始鎖定版，變更不會儲存到雲端（切到 #2 或 #3 才會存）`), 800);
         }
+    }
+
+    // 手動標記版本（按 📸 按鈕）
+    manualSnapshot() {
+        if (!this.cloudSync) {
+            if (this.config.showFeedback) this.config.showFeedback(`❌ 雲端未連線，無法標記`);
+            return;
+        }
+        const config = {
+            calibrationData: this.calibrationData,
+            centerOffset: this.centerOffset,
+            defaultTriggerRadius: this.defaultTriggerRadius,
+            smoothingFactor: this.smoothingFactor,
+            soundSettings: this.soundSettings,
+            mouthControlEnabled: this.mouthControlEnabled,
+            mouthTriggerMode: this.mouthTriggerMode,
+            scalingMode: this.scalingMode,
+            yawScale: this.yawScale,
+            pitchScale: this.pitchScale,
+            bpm: this.bpm
+        };
+        this.cloudSync.uploadHistory(this.currentProfileIndex, config, 'manual')
+            .then(() => {
+                if (this.config.showFeedback) {
+                    this.config.showFeedback(`📸 已標記 profile ${this.currentProfileIndex} 此版本（手動快照）`);
+                }
+            })
+            .catch(e => {
+                console.warn('[manualSnapshot] failed', e);
+                if (this.config.showFeedback) this.config.showFeedback(`❌ 標記失敗: ${e.message}`);
+            });
     }
 
     // 從 baseline 還原當前 profile
