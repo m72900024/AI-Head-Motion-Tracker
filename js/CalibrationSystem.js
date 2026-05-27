@@ -483,9 +483,26 @@ class CalibrationSystem {
             const mtm = document.getElementById('mouth-trigger-mode');
             if (mtm) mtm.value = this.mouthTriggerMode;
         }
-        if (config.scalingMode !== undefined) this.scalingMode = config.scalingMode;
-        if (config.yawScale !== undefined) this.yawScale = config.yawScale;
-        if (config.pitchScale !== undefined) this.pitchScale = config.pitchScale;
+        if (config.scalingMode !== undefined) {
+            this.scalingMode = config.scalingMode;
+            const radio = document.querySelector(`input[name="scaling-mode"][value="${this.scalingMode}"]`);
+            if (radio) radio.checked = true;
+            if (typeof this.updateScalingUI === 'function') this.updateScalingUI();
+        }
+        if (config.yawScale !== undefined) {
+            this.yawScale = parseInt(config.yawScale);
+            const s = document.getElementById('yaw-scale-slider');
+            const v = document.getElementById('yaw-scale-val');
+            if (s) s.value = this.yawScale;
+            if (v) v.innerText = this.yawScale + '%';
+        }
+        if (config.pitchScale !== undefined) {
+            this.pitchScale = parseInt(config.pitchScale);
+            const s = document.getElementById('pitch-scale-slider');
+            const v = document.getElementById('pitch-scale-val');
+            if (s) s.value = this.pitchScale;
+            if (v) v.innerText = this.pitchScale + '%';
+        }
 
         // BPM：同步主 + 鏡像 slider + 呼叫外部 setter
         if (config.bpm !== undefined) {
