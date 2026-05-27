@@ -228,17 +228,19 @@ function setManualFont(size) {
             <h4>② 左上常見操作</h4>
             <ul>
                 <li><span class="pill green">🟢</span> 雲端同步狀態</li>
-                <li><span class="pill blue">🔒 1</span> <span class="pill gray">2</span> <span class="pill gray">3</span> 切設定檔</li>
-                <li><span class="pill amber">📥</span> 出狀況一鍵還原</li>
+                <li><span class="pill blue">🔒 1</span> <span class="pill green">2</span> <span class="pill gray">3</span> 切設定檔（2 是預設）</li>
+                <li><span class="pill amber">📥</span> 出狀況一鍵還原 baseline</li>
+                <li><span class="pill green">📸</span> 標記當前版本（手動快照）</li>
             </ul>
         </div>
 
         <div class="speed-card-block">
             <h4>③ 設定檔選哪個？</h4>
             <ul>
-                <li><span class="pill blue">🔒 1</span> 馥華原始版（鎖定）</li>
-                <li><span class="pill gray">2</span> 校正 A（自由調整）</li>
-                <li><span class="pill gray">3</span> 校正 B（自由調整）</li>
+                <li><span class="pill blue">🔒 1</span> 鎖定 baseline（救援用）</li>
+                <li><span class="pill green">2 預設</span> 自由編輯（馥華打開直接落這）</li>
+                <li><span class="pill gray">3</span> 校正 B（備用，自由編輯）</li>
+                <li><strong>📸</strong> 調好一版按一下標記，未來找得回</li>
             </ul>
         </div>
 
@@ -380,7 +382,7 @@ function setManualFont(size) {
 <div class="step"><div class="step-num">2</div><div class="step-body">按中央 <strong>「▶ 點擊開始 (啟動音效)」</strong></div></div>
 <div class="step"><div class="step-num">3</div><div class="step-body">允許攝影機權限（瀏覽器跳出對話框時）</div></div>
 <div class="step"><div class="step-num">4</div><div class="step-body">等左上 <span class="pill green">🟢 已同步</span></div></div>
-<div class="step"><div class="step-num">5</div><div class="step-body">左上選擇要使用的設定檔 <span class="pill blue">🔒 1</span> / <span class="pill gray">2</span> / <span class="pill gray">3</span></div></div>
+<div class="step"><div class="step-num">5</div><div class="step-body">確認左上 active 是 <span class="pill green">2</span>（預設應已是 2，馥華打開直接用，不用切換）</div></div>
 
 <h3>3.2 左上元素一覽</h3>
 <table>
@@ -389,18 +391,27 @@ function setManualFont(size) {
 <tr><td><span class="pill amber">🟡 同步中</span></td><td>正在寫入雲端（1-3 秒）</td></tr>
 <tr><td><span class="pill red">🔴 失敗</span></td><td>網路或雲端問題，本地仍可用</td></tr>
 <tr><td><span class="pill gray">⚫ 離線</span></td><td>沒網路，純本地模式</td></tr>
-<tr><td><span class="pill blue">🔒 1</span> <span class="pill gray">2</span> <span class="pill gray">3</span></td><td>三設定檔切換（藍色＝當前）</td></tr>
-<tr><td><span class="pill amber">📥</span></td><td>從原始 baseline 還原</td></tr>
+<tr><td><span class="pill blue">🔒 1</span> <span class="pill green">2</span> <span class="pill gray">3</span></td><td>三設定檔切換（綠/藍色＝當前 active；預設 2）</td></tr>
+<tr><td><span class="pill amber">📥</span></td><td>從原始 baseline 還原到當前 profile</td></tr>
+<tr><td><span class="pill green">📸</span></td><td>標記當前版本（手動快照，存進歷程供未來還原）</td></tr>
 <tr><td><span class="pill amber">☁️ 套用新設定</span></td><td>有遠端更新時出現</td></tr>
 </table>
 
 <h3>3.3 三個設定檔的差別</h3>
 <table>
 <tr><th>Profile</th><th>用途</th><th>能否覆寫</th><th>雲端同步</th></tr>
-<tr><td><span class="pill blue">🔒 1 原始</span></td><td>馥華初始 CSV 校正</td><td>❌ 鎖定</td><td>不上雲</td></tr>
-<tr><td><span class="pill gray">2 校正 A</span></td><td>日常使用</td><td>✅</td><td>✅</td></tr>
-<tr><td><span class="pill gray">3 校正 B</span></td><td>備用 / 實驗</td><td>✅</td><td>✅</td></tr>
+<tr><td><span class="pill blue">🔒 1 鎖定</span></td><td>baseline（救援用，永遠回得來的版本）</td><td>❌ 鎖定</td><td>不上雲</td></tr>
+<tr><td><span class="pill green">2 預設</span></td><td><strong>馥華打開直接用</strong>，日常編輯</td><td>✅</td><td>✅</td></tr>
+<tr><td><span class="pill gray">3 備用</span></td><td>實驗新校正 / 替代版本</td><td>✅</td><td>✅</td></tr>
 </table>
+
+<div class="callout info">
+<strong>baseline 是什麼</strong>：profile 1 跟 cloud 的 <code>baseline/original</code> 是同一份「最後一次認可的好設定」。當 profile 2/3 被調壞時，按左上 <span class="pill amber">📥</span> 一鍵還原回 baseline。
+</div>
+
+<div class="callout tip">
+<strong>📸 標記版本</strong>：治療師調好一版「OK 這版可以」時按左上綠色 <span class="pill green">📸</span>——這版會被存進歷程（每個 profile 保留最近 50 筆），未來想還原這個時間點可以查得到。
+</div>
 
 <h3>3.4 字體放大</h3>
 <p>頂部中央三顆 <span class="kbd">A</span>（小/中/大）——給視力差的協助者，馥華本人視障無感。狀態存瀏覽器，下次保持。</p>
@@ -772,7 +783,7 @@ function setManualFont(size) {
 <tr><td>攝影機沒畫面</td><td>瀏覽器權限被擋</td><td>網址列左邊鎖頭 → 攝影機 → 允許 → 重整</td></tr>
 <tr><td>左上 🔴 紅燈</td><td>網路或 Firebase 連不上</td><td>檢查 wifi，本地仍可用</td></tr>
 <tr><td>左上 ⚫ 離線</td><td>純本地模式</td><td>網路恢復會自動變 🟢</td></tr>
-<tr><td>位置全部跑掉</td><td>誤觸或別人覆寫</td><td>切到 <span class="pill gray">2</span>/<span class="pill gray">3</span> → 按 <span class="pill amber">📥</span></td></tr>
+<tr><td>位置全部跑掉</td><td>誤觸或別人覆寫</td><td>切到 <span class="pill green">2</span>/<span class="pill gray">3</span> → 按 <span class="pill amber">📥</span> 還原 baseline；或找 azen 從歷程救回特定時間點</td></tr>
 <tr><td>沒聲音</td><td>音效未啟動 / Tone.Sampler 載入失敗</td><td>確認有按過 <strong>▶ 點擊開始</strong>；樂器切換到合成鋼琴試試</td></tr>
 <tr><td>反應太慢 / 太靈敏</td><td>smoothing 不對</td><td>校正面板 → 🎚️ 反應靈敏度</td></tr>
 <tr><td>頭歪掉 9 宮格不對</td><td>中心點漂移</td><td>校正面板 → 🎯 手動設定當前為中心點</td></tr>
@@ -789,6 +800,20 @@ function setManualFont(size) {
 <section class="chapter" id="appendix-b">
 <h2>附錄 B：進階（備份 / 多裝置同步）</h2>
 
+<h3>B.0 歷程記錄系統（5-28 新增）</h3>
+<p>profile 2 / profile 3 每次儲存（slider 鬆手、拖拉、滾輪、自動存）都會在雲端寫一筆 history snapshot，每個 profile 保留<strong>最近 50 筆</strong>。</p>
+<ul>
+    <li>用途：誤覆寫時可從歷程找回任何時間點的版本</li>
+    <li>觸發：自動（每次 save）+ 手動（左上 <span class="pill green">📸</span> 按鈕）</li>
+    <li>內容：每筆含完整 profile snapshot + 寫入時間 + 寫入者裝置 + 原因（auto-save / manual）</li>
+    <li>儲存：<code>head_tracker_profiles/{id}/history/{auto-id}</code> 子集合</li>
+    <li>cap：50 筆自動 trim 最舊（每 10 次寫入或每次手動標記觸發）</li>
+</ul>
+
+<div class="callout tip">
+<strong>治療師 SOP 建議</strong>：每次調好一個「OK 這版可以」狀態，按一下 <span class="pill green">📸</span>，這版就被「鎖住」進歷程。未來想還原這個時間點時，告知 azen 找該筆 history snapshot 即可。
+</div>
+
 <h3>B.1 多裝置同步原理</h3>
 <p>profile 2/3 的所有變更（位置、樂器、音量、BPM 等）會在 1-3 秒內透過 Firebase Firestore 同步到所有開著 app 的裝置。</p>
 <ul>
@@ -799,10 +824,12 @@ function setManualFont(size) {
 
 <h3>B.2 雲端備份結構</h3>
 <ul>
-    <li><code>head_tracker_profiles/1</code> — 馥華原始版（前端鎖定）</li>
-    <li><code>head_tracker_profiles/2</code> — 校正 A</li>
-    <li><code>head_tracker_profiles/3</code> — 校正 B</li>
-    <li><code>head_tracker_baselines/original</code> — 永不被覆寫的原始副本</li>
+    <li><code>head_tracker_profiles/1</code> — 🔒 鎖定 baseline（同 baseline/original 內容）</li>
+    <li><code>head_tracker_profiles/2</code> — 預設使用</li>
+    <li><code>head_tracker_profiles/3</code> — 備用</li>
+    <li><code>head_tracker_profiles/{id}/history/...</code> — 各 profile 最近 50 筆歷程</li>
+    <li><code>head_tracker_baselines/original</code> — 當前 baseline（治療師 OK 後升級進來的）</li>
+    <li><code>head_tracker_baselines/original-20260328</code> — 歷史封存（3-28 馥華原始 CSV）</li>
 </ul>
 
 <h3>B.3 離線版下載</h3>
