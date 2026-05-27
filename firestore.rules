@@ -1,8 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // 主 profile：完全開放（測試期）
     match /head_tracker_profiles/{profileId} {
       allow read, write: if true;
+      // 歷程子集合：跟 profile 同樣開放
+      match /history/{historyId} {
+        allow read, write: if true;
+      }
+    }
+    // Baseline：開放讀（前端「📥 還原」用），寫只能 admin token
+    match /head_tracker_baselines/{docId} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
