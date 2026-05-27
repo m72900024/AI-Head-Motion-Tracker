@@ -38,6 +38,9 @@ class CalibrationSystem {
         this.STORAGE_KEY_PREFIX = 'head_tracker_config_v11_profile_';
         this.currentProfileIndex = 1;
 
+        // BPM（連彈速度 / 伴奏 / 節拍器共用，存入 profile）
+        this.bpm = 100;
+
         // Cloud sync (Firestore)
         this.cloudSync = config.cloudSync || null;
         this.pendingRemoteConfig = null;
@@ -359,7 +362,8 @@ class CalibrationSystem {
             mouthTriggerMode: this.mouthTriggerMode,
             scalingMode: this.scalingMode,
             yawScale: this.yawScale,
-            pitchScale: this.pitchScale
+            pitchScale: this.pitchScale,
+            bpm: this.bpm
         };
         
         const isLocked = this.currentProfileIndex === 1;
@@ -482,6 +486,20 @@ class CalibrationSystem {
         if (config.scalingMode !== undefined) this.scalingMode = config.scalingMode;
         if (config.yawScale !== undefined) this.yawScale = config.yawScale;
         if (config.pitchScale !== undefined) this.pitchScale = config.pitchScale;
+
+        // BPM：同步主 + 鏡像 slider + 呼叫外部 setter
+        if (config.bpm !== undefined) {
+            this.bpm = parseInt(config.bpm);
+            const bpmSlider = document.getElementById('bpm-slider');
+            const bpmVal = document.getElementById('bpm-val');
+            const bpmMirror = document.getElementById('bpm-slider-mirror');
+            const bpmMirrorVal = document.getElementById('bpm-val-mirror');
+            if (bpmSlider) bpmSlider.value = this.bpm;
+            if (bpmVal) bpmVal.innerText = this.bpm;
+            if (bpmMirror) bpmMirror.value = this.bpm;
+            if (bpmMirrorVal) bpmMirrorVal.innerText = this.bpm;
+            if (this.config.onBpmLoad) this.config.onBpmLoad(this.bpm);
+        }
 
         document.querySelectorAll('.calib-btn').forEach(btn => btn.classList.remove('recorded'));
         for (let id in this.calibrationData) {
