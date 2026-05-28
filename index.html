@@ -28,6 +28,7 @@
     <!-- 核心模組 -->
     <script src="js/config.js"></script>
     <script src="js/CloudSync.js"></script>
+    <script src="js/Recorder.js"></script>
     <script src="js/CalibrationSystem.js"></script>
     <script src="js/FaceTracker.js"></script>
     <script src="js/UIController.js"></script>
@@ -121,6 +122,9 @@
             <button class="profile-pill-restore" onclick="restoreFromBaseline()" title="從原始 baseline 還原到當前 profile（需先切到 #2 或 #3）">📥</button>
             <button class="profile-pill-snapshot" onclick="snapshotProfile()" title="📸 標記當前版本（手動快照，未來可從歷程還原）">📸</button>
         </div>
+
+        <!-- 錄音按鈕（按一下開始 → 計時 → 再按一下下載）-->
+        <button id="record-btn" class="record-btn" onclick="toggleRecording()" title="錄製當前所有聲音（主旋律+伴奏），按停止後自動下載 .webm">🎙️ 錄音</button>
 
         <!-- 操作手冊連結（新分頁開啟）-->
         <a href="docs/manual.html" target="_blank" rel="noopener" class="manual-link" title="開啟操作手冊（新分頁）">📖 操作手冊</a>
@@ -612,6 +616,14 @@
         window.restoreFromBaseline = () => calibrationSystem.restoreFromBaseline();
         // 全域函式：「📸 標記當前版本」按鈕呼叫
         window.snapshotProfile = () => calibrationSystem.manualSnapshot();
+
+        // 錄音器初始化（按 🎙️ 啟動 Tone.Recorder）
+        const headTrackerRecorder = new HeadTrackerRecorder({
+            getProfileIndex: () => calibrationSystem && calibrationSystem.currentProfileIndex,
+            showFeedback: (msg) => uiController && uiController.showFeedback(msg),
+        });
+        headTrackerRecorder.init();
+        window.toggleRecording = () => headTrackerRecorder.toggle();
         
         // Initialize UIController
         uiController = new UIController({
