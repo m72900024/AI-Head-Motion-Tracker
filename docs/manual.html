@@ -231,6 +231,7 @@ function setManualFont(size) {
                 <li><span class="pill blue">🔒 1</span> <span class="pill green">2</span> <span class="pill gray">3</span> 切設定檔（2 是預設）</li>
                 <li><span class="pill amber">📥</span> 出狀況一鍵還原 baseline</li>
                 <li><span class="pill green">📸</span> 標記當前版本（手動快照）</li>
+                <li><span class="pill red">🎙️</span> 錄音（按一下開始，再按下載）</li>
             </ul>
         </div>
 
@@ -276,7 +277,7 @@ function setManualFont(size) {
         </li>
         <li><a href="#ch2">協助者的日常操作（左上常駐區）</a>
             <ul>
-                <li>軟體啟動 / 左上元素 / 設定檔差別 / 字體 / 三主面板</li>
+                <li>軟體啟動 / 左上元素 / 設定檔差別 / 字體 / 🎙️ 錄音 / 三主面板</li>
             </ul>
         </li>
         <li><a href="#ch3">🎤 彈奏設定（逐項說明）</a>
@@ -394,6 +395,7 @@ function setManualFont(size) {
 <tr><td><span class="pill blue">🔒 1</span> <span class="pill green">2</span> <span class="pill gray">3</span></td><td>三設定檔切換（綠/藍色＝當前 active；預設 2）</td></tr>
 <tr><td><span class="pill amber">📥</span></td><td>從原始 baseline 還原到當前 profile</td></tr>
 <tr><td><span class="pill green">📸</span></td><td>標記當前版本（手動快照，存進歷程供未來還原）</td></tr>
+<tr><td><span class="pill red">🎙️ 錄音</span></td><td>錄製當前所有聲音（主旋律+伴奏混音），停止後自動下載 .webm（→ 5-28 新增，見 3.6）</td></tr>
 <tr><td><span class="pill amber">☁️ 套用新設定</span></td><td>有遠端更新時出現</td></tr>
 </table>
 
@@ -416,7 +418,30 @@ function setManualFont(size) {
 <h3>3.4 字體放大</h3>
 <p>頂部中央三顆 <span class="kbd">A</span>（小/中/大）——給視力差的協助者，馥華本人視障無感。狀態存瀏覽器，下次保持。</p>
 
-<h3>3.5 三個主面板按鈕（右下角）</h3>
+<h3>3.6 🎙️ 錄音功能（2026-05-28 新增）</h3>
+
+<p>左上紅色 🎙️ 按鈕，錄製馥華彈奏 + 伴奏的完整混音。給父母聽進步、給治療師檢討練習。</p>
+
+<div class="step"><div class="step-num">1</div><div class="step-body">確認音效已啟動（曾按過中央「▶ 點擊開始」），否則錄出來是無聲</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-body">按左上 <span class="pill red">🎙️ 錄音</span>，按鈕變紅色脈衝閃爍，顯示 <strong>🔴 錄音中 M:SS</strong></div></div>
+<div class="step"><div class="step-num">3</div><div class="step-body">馥華開始彈奏（連彈、伴奏、嘴部切換八度...全都會被錄）</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-body">結束時再按一次同顆按鈕，自動下載 .webm 到瀏覽器預設下載資料夾</div></div>
+
+<table>
+<tr><th>項目</th><th>說明</th></tr>
+<tr><td><strong>錄什麼</strong></td><td>Tone.js Destination 全部混音（主旋律 + 伴奏 + 節拍器 + 旋律示範 + 嘴部切換），不含麥克風聲</td></tr>
+<tr><td><strong>檔案格式</strong></td><td>.webm（音訊用 Opus 編碼），任何現代瀏覽器 / VLC / iPhone 都能播</td></tr>
+<tr><td><strong>檔名</strong></td><td><code>head_tracker_profile_{N}_{YYYY-MM-DD}_{HH-MM-SS}.webm</code></td></tr>
+<tr><td><strong>大小</strong></td><td>約 1 MB / 分鐘</td></tr>
+<tr><td><strong>儲存位置</strong></td><td>瀏覽器預設下載資料夾（Mac: <code>~/Downloads</code>）</td></tr>
+<tr><td><strong>限制</strong></td><td>長錄音吃記憶體；建議單次 ≤ 30 分鐘</td></tr>
+</table>
+
+<div class="callout tip">
+<strong>治療師 SOP 建議</strong>：每次 session 開頭按一下開始錄音，session 結束按停止下載。檔名自帶日期時間 + profile 編號，方便整理進個案資料夾。
+</div>
+
+<h3>3.7 三個主面板按鈕（右下角）</h3>
 <table>
 <tr><th>按鈕</th><th>內容</th><th>章節</th></tr>
 <tr><td><span class="pill purple">🎤 彈奏設定</span></td><td>主旋律音色 / 嘴部 / 連彈</td><td>→ 第 4 章</td></tr>
