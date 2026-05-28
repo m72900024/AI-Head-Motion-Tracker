@@ -105,16 +105,34 @@ body.font-large .side-panel { --font-scale: 1.5; }
 .cloud-sync-status[data-status="offline"] { border-color: #6b7280; color: #9ca3af; }
 
 .cloud-apply-btn {
-    position: absolute; top: 130px; left: 20px; z-index: 60;
+    position: absolute; top: 170px; left: 20px; z-index: 60;
     background: #f59e0b; color: #000; font-weight: bold;
     border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.75rem;
     cursor: pointer; pointer-events: auto;
     animation: pulse-glow 1.5s ease-in-out infinite;
 }
 
+/* 錄音按鈕 */
+.record-btn {
+    position: absolute; top: 90px; left: 20px; z-index: 60;
+    background: rgba(0, 0, 0, 0.75); border: 1px solid #ef4444; color: #fca5a5;
+    cursor: pointer; border-radius: 6px; padding: 4px 12px; font-size: 0.75rem;
+    font-family: inherit; font-weight: 600; pointer-events: auto;
+    min-width: 120px; text-align: left;
+}
+.record-btn:hover { background: rgba(239, 68, 68, 0.2); color: #fff; }
+.record-btn.recording {
+    background: #ef4444; color: #fff;
+    animation: pulse-red 1s ease-in-out infinite;
+}
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+    50% { box-shadow: 0 0 14px 5px rgba(239, 68, 68, 0); }
+}
+
 /* 操作手冊連結（左上常駐，新分頁開啟）*/
 .manual-link {
-    position: absolute; top: 90px; left: 20px; z-index: 60;
+    position: absolute; top: 130px; left: 20px; z-index: 60;
     background: rgba(0, 0, 0, 0.75); border: 1px solid #a78bfa; border-radius: 6px;
     padding: 4px 12px; font-size: 0.75rem; color: #c4b5fd; pointer-events: auto;
     font-family: inherit; text-decoration: none; font-weight: 600;
